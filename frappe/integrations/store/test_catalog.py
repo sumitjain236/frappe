@@ -50,9 +50,7 @@ class TestStoreCatalog(IntegrationTestCase):
 	@patch("frappe.integrations.doctype.store_connection_detail.store_connection_detail.FrappeClient")
 	def test_ping_catalog_maps_permission_error(self, mock_frappe_client):
 		mock_frappe_client.return_value = self.mock_frappe_client(
-			side_effect=FrappeException(
-				"FrappeClient Request Failed\n\nPermissionError: Catalog API is disabled"
-			)
+			side_effect=FrappeException("FrappeClient Request Failed\n\nPermissionError: Catalog API is disabled")
 		)
 
 		connection = make_store_connection(label="Failed Ping Test", save=False)

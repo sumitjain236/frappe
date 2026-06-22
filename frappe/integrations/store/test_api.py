@@ -12,6 +12,7 @@ from frappe.integrations.store import api
 from frappe.integrations.store.catalog import filter_catalog_items, get_catalog_categories, get_catalog_tags
 from frappe.tests import IntegrationTestCase
 
+
 SAMPLE_ITEMS = [
 	{
 		"name": "SI-00001",
@@ -97,6 +98,7 @@ class TestStoreAPI(IntegrationTestCase):
 		connections = api.get_store_connections()
 		self.assertEqual(len(connections), 1)
 		self.assertEqual(connections[0]["label"], "Publisher")
+		self.assertEqual(connections[0]["route_label"], "publisher")
 
 	def test_resolve_store_connection_prefers_default(self):
 		connections = [
@@ -114,10 +116,21 @@ class TestStoreAPI(IntegrationTestCase):
 
 	def test_resolve_store_connection_uses_route(self):
 		connections = [
-			{"name": "Alpha", "label": "Alpha", "is_default": 1},
-			{"name": "Beta", "label": "Beta", "is_default": 0},
+			{"name": "Alpha", "label": "Alpha One",
+				"route_label": "alpha-one", "is_default": 1},
+			{"name": "Beta", "label": "Beta Two", "route_label": "beta-two", "is_default": 0},
 		]
-		self.assertEqual(api.resolve_store_connection(connections, route_connection="Beta"), "Beta")
+		self.assertEqual(api.resolve_store_connection(
+			connections, route_connection="beta-two"), "Beta")
+
+	def test_resolve_store_connection_uses_label(self):
+		connections = [
+			{"name": "Alpha", "label": "Alpha One",
+				"route_label": "alpha-one", "is_default": 1},
+			{"name": "Beta", "label": "Beta Two", "route_label": "beta-two", "is_default": 0},
+		]
+		self.assertEqual(api.resolve_store_connection(
+			connections, route_connection="Beta Two"), "Beta")
 
 	@patch("frappe.integrations.store.api.fetch_catalog_list")
 	@patch("frappe.integrations.store.api.frappe.get_installed_apps")
@@ -132,9 +145,7 @@ class TestStoreAPI(IntegrationTestCase):
 
 	@patch("frappe.integrations.store.api.fetch_catalog_list")
 	@patch("frappe.integrations.store.api.frappe.get_installed_apps")
-	def test_get_catalog_list_defaults_to_installed_apps(
-		self, mock_get_installed_apps, mock_fetch_catalog_list
-	):
+	def test_get_catalog_list_defaults_to_installed_apps(self, mock_get_installed_apps, mock_fetch_catalog_list):
 		mock_get_installed_apps.return_value = INSTALLED_APPS
 		connection = make_store_connection(label="Publisher", base_url="https://publisher.example.com")
 		mock_fetch_catalog_list.return_value = SAMPLE_ITEMS
@@ -163,3 +174,58 @@ class TestStoreAPI(IntegrationTestCase):
 		item = api.get_catalog_item(connection.name, "SI-00001")
 		self.assertEqual(item["title"], "Sales Report")
 		mock_fetch_catalog_item.assert_called_once()
+
+	@patch("frappe.integrations.store.api.fetch_catalog_list")
+	@patch("frappe.integrations.store.api.frappe.get_installed_apps")
+	def test_get_catalog_list_marks_installed_items(self, mock_get_installed_apps, mock_fetch_catalog_list):
+		mock_get_installed_apps.return_value = INSTALLED_APPS
+		connection = make_store_connection(
+			label="Publisher", base_url="https://publisher.example.com")
+		mock_fetch_catalog_list.return_value = [
+			{"name": "SI-00001", "title": "Sales Report",
+				"app": "erpnext", "package_hash": "hash-1"},
+			{"name": "SI-00002", "title": "Dashboard",
+				"app": "frappe", "package_hash": "hash-2"},
+		]
+
+		frappe.get_doc(
+			{
+				"doctype": "Store Install Log",
+				"store_connection": connection.name,
+				"host": connection.label,
+				"base_url": connection.base_url,
+				"store_item": "SI-00001",
+				"package_hash": "hash-1",
+				"status": "Installed",
+			}
+		).insert(ignore_permissions=True)
+
+		items = api.get_catalog_list(connection.name)
+		status_by_item = {row["name"]: row["installed"] for row in items}
+		self.assertTrue(status_by_item["SI-00001"])
+		self.assertFalse(status_by_item["SI-00002"])
+
+	@patch("frappe.integrations.store.api.fetch_catalog_item")
+	def test_get_catalog_item_marks_installed(self, mock_fetch_catalog_item):
+		connection = make_store_connection(
+			label="Publisher", base_url="https://publisher.example.com")
+		mock_fetch_catalog_item.return_value = {
+			"name": "SI-00001",
+			"title": "Sales Report",
+			"package_hash": "hash-1",
+		}
+
+		frappe.get_doc(
+			{
+				"doctype": "Store Install Log",
+				"store_connection": connection.name,
+				"host": connection.label,
+				"base_url": connection.base_url,
+				"store_item": "SI-00001",
+				"package_hash": "hash-1",
+				"status": "Installed",
+			}
+		).insert(ignore_permissions=True)
+
+		item = api.get_catalog_item(connection.name, "SI-00001")
+		self.assertTrue(item["installed"])

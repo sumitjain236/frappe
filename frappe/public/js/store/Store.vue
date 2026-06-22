@@ -5,11 +5,7 @@
 				<div>
 					<h4 class="store-title">{{ __("Store") }}</h4>
 					<p class="text-muted store-subtitle">
-						{{
-							__(
-								"Browse and install shareable artifacts from connected Store hosts."
-							)
-						}}
+						{{ __("Browse and install shareable artifacts from connected Store hosts.") }}
 					</p>
 				</div>
 				<div
@@ -25,11 +21,7 @@
 						:title="connection_title"
 						@change="on_connection_change"
 					>
-						<option
-							v-for="connection in connections"
-							:key="connection.name"
-							:value="connection.name"
-						>
+						<option v-for="connection in connections" :key="connection.name" :value="connection.name">
 							{{ connection.label }}
 						</option>
 					</select>
@@ -51,10 +43,7 @@
 							@input="debounced_load_items"
 						/>
 					</div>
-					<div
-						class="form-group frappe-control store-filter-field"
-						data-fieldtype="Select"
-					>
+					<div class="form-group frappe-control store-filter-field" data-fieldtype="Select">
 						<select
 							id="store-app-filter"
 							name="store_app"
@@ -67,15 +56,9 @@
 								{{ app }}
 							</option>
 						</select>
-						<div
-							class="select-icon xs"
-							v-html="frappe.utils.icon('select', 'xs')"
-						></div>
+						<div class="select-icon xs" v-html="frappe.utils.icon('select', 'xs')"></div>
 					</div>
-					<div
-						class="form-group frappe-control store-filter-field"
-						data-fieldtype="Select"
-					>
+					<div class="form-group frappe-control store-filter-field" data-fieldtype="Select">
 						<select
 							id="store-category-filter"
 							name="store_category"
@@ -84,26 +67,17 @@
 							@change="load_items"
 						>
 							<option value="">{{ __("Category") }}</option>
-							<option
-								v-for="category in filter_options.categories"
-								:key="category"
-								:value="category"
-							>
+							<option v-for="category in filter_options.categories" :key="category" :value="category">
 								{{ category }}
 							</option>
 						</select>
-						<div
-							class="select-icon xs"
-							v-html="frappe.utils.icon('select', 'xs')"
-						></div>
+						<div class="select-icon xs" v-html="frappe.utils.icon('select', 'xs')"></div>
 					</div>
 				</div>
 			</div>
 
 			<div v-if="loading" class="store-state">{{ __("Loading catalog...") }}</div>
-			<div v-else-if="error_message" class="store-state store-state-error">
-				{{ error_message }}
-			</div>
+			<div v-else-if="error_message" class="store-state store-state-error">{{ error_message }}</div>
 			<div v-else-if="!connections.length" class="store-state">
 				<p class="text-muted">{{ __("No Store Connections configured yet.") }}</p>
 				<button class="btn btn-primary btn-sm" type="button" @click="open_connections">
@@ -140,19 +114,18 @@
 						<div class="store-card-body">
 							<div class="store-card-head">
 								<h5 class="store-card-title">{{ item.title }}</h5>
-								<span v-if="item.version" class="store-card-version"
-									>v{{ item.version }}</span
-								>
+								<span v-if="item.version" class="store-card-version">v{{ item.version }}</span>
 							</div>
-							<div v-if="item.app || item.category" class="store-card-tags">
+							<div v-if="item.app || item.category || item.installed" class="store-card-tags">
 								<span v-if="item.app" class="store-card-tag store-card-tag-app">
 									{{ item.app }}
 								</span>
-								<span
-									v-if="item.category"
-									class="store-card-tag store-card-tag-category"
-								>
+								<span v-if="item.category" class="store-card-tag store-card-tag-category">
 									{{ item.category }}
+								</span>
+								<span v-if="item.installed" class="store-card-tag store-card-tag-installed">
+									<span v-html="frappe.utils.icon('check', 'xs')"></span>
+									{{ __('Installed') }}
 								</span>
 							</div>
 							<p v-if="item.description" class="store-card-description text-muted">
@@ -166,15 +139,9 @@
 
 		<template v-else>
 			<div v-if="detail_loading" class="store-state">{{ __("Loading item...") }}</div>
-			<div v-else-if="detail_error" class="store-state store-state-error">
-				{{ detail_error }}
-			</div>
+			<div v-else-if="detail_error" class="store-state store-state-error">{{ detail_error }}</div>
 			<article v-else-if="detail_item" class="store-product">
-				<button
-					class="btn btn-default btn-sm store-back-btn"
-					type="button"
-					@click="close_detail"
-				>
+				<button class="btn btn-default btn-sm store-back-btn" type="button" @click="close_detail">
 					<span v-html="frappe.utils.icon('left', 'xs')"></span>
 					{{ __("Back to Store") }}
 				</button>
@@ -196,26 +163,14 @@
 							</div>
 							<div class="store-product-intro">
 								<h2 class="store-product-title">{{ detail_item.title }}</h2>
-								<p
-									v-if="detail_item.description"
-									class="store-product-tagline text-muted"
-								>
+								<p v-if="detail_item.description" class="store-product-tagline text-muted">
 									{{ detail_item.description }}
 								</p>
-								<div
-									v-if="detail_item.app || detail_item.category"
-									class="store-hero-badges"
-								>
-									<span
-										v-if="detail_item.app"
-										class="store-badge store-badge--app"
-									>
+								<div v-if="detail_item.app || detail_item.category" class="store-hero-badges">
+									<span v-if="detail_item.app" class="store-badge store-badge--app">
 										{{ detail_item.app }}
 									</span>
-									<span
-										v-if="detail_item.category"
-										class="store-badge store-badge--category"
-									>
+									<span v-if="detail_item.category" class="store-badge store-badge--category">
 										{{ detail_item.category }}
 									</span>
 								</div>
@@ -240,6 +195,10 @@
 								<span v-html="frappe.utils.icon('download', 'xs')"></span>
 								{{ __("Install") }}
 							</button>
+							<div v-if="detail_item.installed" class="store-install-status text-success">
+								<span v-html="frappe.utils.icon('check', 'xs')"></span>
+								{{ __('Installed') }}
+							</div>
 						</div>
 					</div>
 				</header>
@@ -275,10 +234,7 @@
 									<div class="store-preview-frame">
 										<img
 											:src="preview_images[preview_index].src"
-											:alt="
-												preview_images[preview_index].alt ||
-												detail_item.title
-											"
+											:alt="preview_images[preview_index].alt || detail_item.title"
 										/>
 									</div>
 									<button
@@ -289,18 +245,12 @@
 									>
 										<span v-html="frappe.utils.icon('right', 'xs')"></span>
 									</button>
-									<div
-										v-if="preview_images.length > 1"
-										class="store-gallery-dots"
-									>
+									<div v-if="preview_images.length > 1" class="store-gallery-dots">
 										<button
 											v-for="(image, index) in preview_images"
 											:key="image.src"
 											class="store-gallery-dot"
-											:class="{
-												'store-gallery-dot--active':
-													preview_index === index,
-											}"
+											:class="{ 'store-gallery-dot--active': preview_index === index }"
 											type="button"
 											:aria-label="__('Preview image {0}', [index + 1])"
 											@click="preview_index = index"
@@ -310,9 +260,7 @@
 								<div
 									v-if="detail_content.html"
 									class="store-prose"
-									:class="{
-										'store-prose--quill': detail_content.mode === 'quill',
-									}"
+									:class="{ 'store-prose--quill': detail_content.mode === 'quill' }"
 									v-html="detail_content.html"
 								></div>
 								<p v-else class="store-product-fallback-text text-muted">
@@ -321,17 +269,9 @@
 							</template>
 
 							<template v-else-if="detail_tab === 'dependencies'">
-								<ul
-									v-if="detail_item.dependencies?.length"
-									class="store-dep-panel-list"
-								>
-									<li
-										v-for="dependency in detail_item.dependencies"
-										:key="dependency.app_name"
-									>
-										<span class="store-dep-panel-name">{{
-											dependency.app_name
-										}}</span>
+								<ul v-if="detail_item.dependencies?.length" class="store-dep-panel-list">
+									<li v-for="dependency in detail_item.dependencies" :key="dependency.app_name">
+										<span class="store-dep-panel-name">{{ dependency.app_name }}</span>
 										<span v-if="dependency.min_version" class="text-muted">
 											≥ {{ dependency.min_version }}
 										</span>
@@ -379,10 +319,7 @@
 						>
 							<h5 class="store-side-card-title">{{ __("Dependencies") }}</h5>
 							<ul class="store-side-list">
-								<li
-									v-for="dependency in detail_item.dependencies"
-									:key="dependency.app_name"
-								>
+								<li v-for="dependency in detail_item.dependencies" :key="dependency.app_name">
 									<span v-html="frappe.utils.icon('file', 'xs')"></span>
 									<span>
 										{{ dependency.app_name }}
@@ -479,9 +416,7 @@ const detail_content = computed(() =>
 
 const has_resource_links = computed(() =>
 	Boolean(
-		detail_item.value?.website ||
-			detail_item.value?.documentation ||
-			detail_item.value?.support
+		detail_item.value?.website || detail_item.value?.documentation || detail_item.value?.support
 	)
 );
 
@@ -514,9 +449,12 @@ function handle_route_change() {
 
 	const route_connection = route[1];
 	const route_item = route[2];
+	const selected_route_value = selected_connection.value
+		? get_connection_route_value(selected_connection.value)
+		: "";
 
-	if (route_connection && route_connection !== selected_connection_name.value) {
-		const match = connections.value.find((row) => row.name === route_connection);
+	if (route_connection && route_connection !== selected_route_value) {
+		const match = find_connection_by_route(route_connection);
 		if (match) {
 			selected_connection_name.value = match.name;
 			on_connection_change({ preserve_item: route_item });
@@ -619,7 +557,7 @@ async function load_items() {
 			},
 		});
 		items.value = message || [];
-		frappe.set_route("store", selected_connection_name.value);
+		frappe.set_route("store", get_connection_route_value(selected_connection.value));
 	} catch (error) {
 		items.value = [];
 		error_message.value = extract_error(error);
@@ -642,7 +580,7 @@ async function open_item(item, options = {}) {
 	preview_index.value = 0;
 
 	if (options.update_route !== false) {
-		frappe.set_route("store", selected_connection_name.value, item.name);
+		frappe.set_route("store", get_connection_route_value(selected_connection.value), item.name);
 	}
 
 	try {
@@ -668,7 +606,7 @@ function close_detail(options = {}) {
 	detail_tab.value = "overview";
 	preview_index.value = 0;
 	if (options.update_route !== false && selected_connection_name.value) {
-		frappe.set_route("store", selected_connection_name.value);
+		frappe.set_route("store", get_connection_route_value(selected_connection.value));
 	}
 }
 
@@ -874,7 +812,7 @@ function extract_error(error) {
 
 function get_initial_connection(connection_list, route_connection) {
 	if (route_connection) {
-		const match = connection_list.find((row) => row.name === route_connection);
+		const match = find_connection_by_route(route_connection, connection_list);
 		if (match) {
 			return match.name;
 		}
@@ -882,6 +820,27 @@ function get_initial_connection(connection_list, route_connection) {
 
 	const default_connection = connection_list.find((row) => row.is_default);
 	return (default_connection || connection_list[0]).name;
+}
+
+function get_connection_route_value(connection) {
+	if (!connection) {
+		return "";
+	}
+
+	return connection.route_label || frappe.router.slug(connection.label || connection.name);
+}
+
+function find_connection_by_route(route_connection, connection_list = connections.value) {
+	if (!route_connection) {
+		return null;
+	}
+
+	return (
+		connection_list.find((row) => route_connection === get_connection_route_value(row)) ||
+		connection_list.find((row) => route_connection === row.label) ||
+		connection_list.find((row) => route_connection === row.name) ||
+		null
+	);
 }
 
 async function refresh_catalog() {
@@ -981,7 +940,10 @@ defineExpose({
 	gap: 0.85rem;
 	padding: 0.9rem;
 	min-height: 128px;
-	transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease,
+		transform 0.15s ease;
 
 	&:hover {
 		border-color: var(--gray-400);
@@ -1074,6 +1036,14 @@ defineExpose({
 	color: var(--purple-700, #7e22ce);
 }
 
+.store-card-tag-installed {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	background: var(--green-100, #dcfce7);
+	color: var(--green-700, #15803d);
+}
+
 .store-card-description {
 	margin: 0;
 	font-size: var(--text-sm);
@@ -1121,7 +1091,7 @@ defineExpose({
 	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
-	align-items: flex-end;
+	align-items: center;
 	gap: 0.4rem;
 }
 
@@ -1221,6 +1191,14 @@ defineExpose({
 	white-space: nowrap;
 }
 
+.store-install-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	font-size: var(--text-sm);
+	font-weight: 600;
+}
+
 .store-product-layout {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 300px;
@@ -1247,7 +1225,9 @@ defineExpose({
 	font-weight: 500;
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: color 0.15s ease, border-color 0.15s ease;
+	transition:
+		color 0.15s ease,
+		border-color 0.15s ease;
 
 	&:hover {
 		color: var(--text-color);

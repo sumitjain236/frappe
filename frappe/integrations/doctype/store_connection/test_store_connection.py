@@ -34,6 +34,12 @@ class TestStoreConnection(IntegrationTestCase):
 		settings = append_store_connection(api_secret="test-secret")
 		self.assertRaises(frappe.ValidationError, settings.save)
 
+	def test_connection_labels_must_be_unique_case_insensitive(self):
+		make_store_connection(label="Publisher")
+		settings = append_store_connection(
+			label="publisher", base_url="https://publisher2.example.com")
+		self.assertRaises(frappe.ValidationError, settings.save)
+
 	@patch("frappe.integrations.doctype.store_connection_detail.store_connection_detail.FrappeClient")
 	def test_frappe_client_uses_credentials(self, mock_frappe_client):
 		connection = make_store_connection(
@@ -72,9 +78,7 @@ class TestStoreConnection(IntegrationTestCase):
 		self.assertRaises(frappe.ValidationError, settings.verify_store_host, connection.name)
 
 	def test_save_does_not_ping_host(self):
-		with patch(
-			"frappe.integrations.doctype.store_connection.store_connection.ping_catalog"
-		) as mock_ping_catalog:
+		with patch("frappe.integrations.doctype.store_connection.store_connection.ping_catalog") as mock_ping_catalog:
 			make_store_connection()
 			mock_ping_catalog.assert_not_called()
 

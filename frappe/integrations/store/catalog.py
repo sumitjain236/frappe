@@ -132,7 +132,9 @@ def request_catalog(connection: StoreConnectionDetail, method: str, params: dict
 		)
 	except requests.exceptions.SSLError as exc:
 		frappe.throw(
-			_("Could not verify SSL certificate for Store host {0}").format(frappe.bold(connection.base_url)),
+			_("Could not verify SSL certificate for Store host {0}").format(
+				frappe.bold(connection.base_url)
+			),
 			title=_("Invalid Store Host"),
 			exc=exc,
 		)
@@ -165,7 +167,8 @@ def raise_catalog_client_error(exc_message: str):
 	"""Map FrappeClient errors from the Store host to validation errors."""
 	if "PermissionError" in exc_message:
 		frappe.throw(
-			_extract_exception_message(exc_message) or _("Store catalog API is disabled on the host."),
+			_extract_exception_message(exc_message)
+			or _("Store catalog API is disabled on the host."),
 			title=_("Store Catalog Unavailable"),
 		)
 

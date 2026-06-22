@@ -36,9 +36,10 @@ class StoreConnection(Document):
 
 		for row in self.connections:
 			label = (row.label or "").strip()
+			label_key = label.casefold()
 			base_url = row.get_normalized_base_url()
 
-			if label in labels:
+			if label_key in labels:
 				frappe.throw(
 					_("Connection label {0} already exists").format(frappe.bold(label)),
 					title=_("Duplicate Connection"),
@@ -49,7 +50,7 @@ class StoreConnection(Document):
 					title=_("Duplicate Connection"),
 				)
 
-			labels.add(label)
+			labels.add(label_key)
 			base_urls.add(base_url)
 
 	def validate_default_connections(self):
