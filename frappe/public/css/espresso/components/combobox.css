@@ -1,0 +1,288 @@
+/* Espresso Combobox — pick one value from a searchable list.
+ *
+ * Two parts: a trigger styled like a form control, and a panel that is an
+ * .es-menu (see menu.css) with role="listbox", so rows, groups, empty and
+ * loading states, motion and dark mode all come from there. This file adds
+ * only what a combobox has and a menu doesn't: the trigger, the search row
+ * pinned above the list, the footer for custom rows, and row affixes.
+ *
+ *   <div class="es-combobox" role="combobox" aria-haspopup="listbox"
+ *        aria-expanded="false" tabindex="0" data-state="open">
+ *     <span class="es-combobox__prefix">(avatar / icon)</span>
+ *     <span class="es-combobox__value" data-placeholder>Select</span>
+ *     <span class="es-combobox__actions"><button class="es-button" data-role="clear">…</button></span>
+ *     <svg class="es-combobox__chevron">…</svg>
+ *   </div>
+ *
+ *   <div class="es-menu es-combobox__panel" role="listbox" data-state="open">
+ *     <div class="es-combobox__search"><svg/><input class="es-combobox__input">(optional <kbd class="es-combobox__hint">esc</kbd>)</div>
+ *     <div class="es-combobox__list"> .es-menu__group > .es-menu__item[role=option] … </div>
+ *     <div class="es-combobox__filters"><svg/>Filtered by <span class="es-badge">Company: FT</span></div>
+ *     <div class="es-combobox__footer"> custom .es-menu__item rows </div>
+ *   </div>
+ *
+ * Row affixes inside .es-menu__item: .es-avatar or svg first, then
+ * .es-menu__label (with an optional .es-menu__description line under it),
+ * then .es-badge right beside it, and .es-combobox__check pushed to the
+ * end on the selected row.
+ *
+ * Trigger attributes: data-state="open" while the panel is up,
+ * data-disabled / aria-disabled, aria-invalid="true" for a bad value. */
+
+/* ---- trigger ---- */
+.es-combobox {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    width: 100%;
+    box-sizing: border-box;
+    height: var(--input-height);
+    padding: 0 calc(var(--spacing) * 1.5) 0 calc(var(--spacing) * 2);
+    background: var(--control-bg);
+    border-radius: var(--radius);
+    color: var(--ink-gray-8);
+    font-size: var(--text-base);
+    line-height: 1.4;
+    text-align: start;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+}
+
+.es-combobox:focus-visible {
+    outline: var(--focus-outline-default);
+    outline-offset: 0;
+}
+
+.es-combobox[data-state="open"] {
+    background: var(--surface-gray-3);
+}
+
+.es-combobox[data-disabled] {
+    color: var(--ink-gray-5);
+    cursor: not-allowed;
+}
+
+.es-combobox[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1px var(--outline-red-3);
+}
+
+.es-combobox__prefix {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--ink-gray-6);
+}
+
+.es-combobox__value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.es-combobox__value[data-placeholder] {
+    color: var(--ink-gray-4);
+}
+
+/* clear (and any owner-added action) buttons: only on hover / focus / open */
+.es-combobox__actions {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 0.5);
+    flex-shrink: 0;
+}
+
+.es-combobox__actions .es-button {
+    --es-bt-h: calc(var(--spacing) * 5);
+    --es-bt-icon: calc(var(--spacing) * 3.5);
+    color: var(--ink-gray-5);
+}
+
+.es-combobox__actions .es-button[data-role="clear"]:hover {
+    color: var(--ink-red-5);
+}
+
+.es-combobox:not(:hover):not(:focus-within):not([data-state="open"]) .es-combobox__actions .es-button {
+    display: none;
+}
+
+/* one chevron, flips while open */
+.es-combobox__chevron {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+    flex-shrink: 0;
+    color: var(--ink-gray-5);
+    transition: transform 120ms;
+}
+
+.es-combobox[data-state="open"] .es-combobox__chevron {
+    transform: rotate(180deg);
+}
+
+/* ---- panel ---- */
+.es-combobox__panel {
+    display: flex;
+    flex-direction: column;
+    /* the owner sets min-width inline to match the trigger */
+    max-height: calc(var(--spacing) * 80);
+    /* the list scrolls, not the panel (the search row stays put) */
+    overflow: hidden;
+}
+
+/* only the option list scrolls; search + footer stay put */
+.es-combobox__list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* search row pinned above the list */
+.es-combobox__search {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    flex-shrink: 0;
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border-bottom: 1px solid var(--outline-elevation-2);
+    color: var(--ink-gray-5);
+}
+
+.es-combobox__search > svg {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+    flex-shrink: 0;
+}
+
+.es-combobox__search > .es-spinner {
+    width: 14px;
+    height: 14px;
+}
+
+.es-combobox__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-gray-8);
+    font: inherit;
+    font-size: var(--text-base);
+    outline: none;
+}
+
+.es-combobox__input::placeholder {
+    color: var(--ink-gray-4);
+}
+
+/* the "esc" hint; plain, not the dark bootstrap kbd */
+.es-combobox__search > .es-combobox__hint {
+    padding: 0 calc(var(--spacing) * 1);
+    border: 1px solid var(--outline-gray-2);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-gray-4);
+    font-size: var(--text-xs);
+    line-height: calc(var(--spacing) * 4);
+    box-shadow: none;
+}
+
+/* applied filters: icon + "Filtered by" + chips, under the list */
+.es-combobox__filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 1);
+    flex-shrink: 0;
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
+    border-top: 1px solid var(--outline-elevation-2);
+    background: var(--surface-gray-1);
+    font-size: var(--text-sm);
+    color: var(--ink-gray-5);
+}
+
+.es-combobox__filters > svg {
+    width: calc(var(--spacing) * 3.5);
+    height: calc(var(--spacing) * 3.5);
+    flex-shrink: 0;
+    /* desk's global .es-menu svg rule centers icons with auto margins */
+    margin: 0;
+}
+
+.es-combobox__filters-label {
+    margin-inline-end: calc(var(--spacing) * 0.5);
+}
+
+/* a chip never widens the panel: long values truncate, the title shows all */
+.es-combobox__filters > .es-badge {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* inline-block (not the badge's inline-flex) so text-overflow applies;
+       line-height = the sm badge height keeps the text vertically centred */
+    display: inline-block;
+    line-height: calc(var(--spacing) * 4);
+}
+
+.es-combobox__filters-more {
+    cursor: pointer;
+}
+
+/* the plain-text form wraps to two lines at most */
+.es-combobox__filters-text {
+    flex: 1 1 100%;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    color: var(--ink-gray-7);
+}
+
+/* footer: custom rows (Create new, Advanced search) */
+.es-combobox__footer {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
+    padding: calc(var(--spacing) * 1.5);
+    border-top: 1px solid var(--outline-elevation-2);
+}
+
+/* ---- row affixes ---- */
+.es-combobox__panel .es-menu__item > .es-avatar {
+    flex-shrink: 0;
+}
+
+/* the label takes only the room it needs so a badge sits right next to it
+   (same column on every row); only the check is pushed to the end, so a
+   selected row's badge doesn't shift left of its neighbours' */
+.es-combobox__panel .es-menu__label {
+    flex: 0 1 auto;
+}
+
+.es-combobox__panel .es-menu__item > .es-badge {
+    flex-shrink: 0;
+}
+
+.es-combobox__check {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    color: var(--ink-gray-6);
+}
+
+/* the typed query inside a label */
+.es-combobox__match {
+    font-weight: var(--font-weight-medium);
+    color: var(--ink-gray-9);
+}
+
+/* skeleton rows while the first page loads */
+.es-combobox__skeleton {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+}
