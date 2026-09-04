@@ -95,6 +95,73 @@ class TestSearch(IntegrationTestCase):
 
 		frappe.delete_doc("User", email)
 
+	def test_search_link_start_paginates(self):
+		# a plain (non-translated) doctype: translated doctypes return every
+		# row on purpose, since their filtering happens on the client
+		doctype = new_doctype(autoname="field:some_fieldname").insert()
+		self.addCleanup(doctype.delete)
+		for i in range(12):
+			frappe.get_doc({"doctype": doctype.name, "some_fieldname": f"Row {i:02d}"}).insert()
+
+		first = search_link(doctype=doctype.name, txt="", page_length=5)
+		second = search_link(doctype=doctype.name, txt="", page_length=5, start=5)
+		self.assertEqual(len(first), 5)
+		self.assertEqual(len(second), 5)
+		self.assertFalse({r["value"] for r in first} & {r["value"] for r in second})
+
+		# two pages cover exactly what one bigger page does, so scrolling never
+		# skips or repeats (each page is relevance-sorted on its own, so only
+		# the membership is compared, not the order)
+		both = search_link(doctype=doctype.name, txt="", page_length=10)
+		self.assertEqual({r["value"] for r in both}, {r["value"] for r in first + second})
+
+		# past the end: empty, not an error
+		self.assertEqual(search_link(doctype=doctype.name, txt="", page_length=5, start=50), [])
+
+	def test_search_link_include_image(self):
+		# User's image_field is user_image; a row carries it as `image`
+		frappe.db.set_value("User", "Administrator", "user_image", "/files/admin.png")
+		self.addCleanup(frappe.db.set_value, "User", "Administrator", "user_image", None)
+
+		rows = search_link(doctype="User", txt="Administrator", include_image=True)
+		admin = next(r for r in rows if r["value"] == "Administrator")
+		self.assertEqual(admin["image"], "/files/admin.png")
+		# the image never leaks into the description
+		self.assertNotIn("admin.png", admin["description"])
+
+		# off by default, and the shape is unchanged
+		rows = search_link(doctype="User", txt="Administrator")
+		admin = next(r for r in rows if r["value"] == "Administrator")
+		self.assertNotIn("image", admin)
+
+		# a DocType without an image_field ignores the flag
+		rows = search_link(doctype="Role", txt="System Manager", include_image=True)
+		self.assertTrue(rows)
+		self.assertNotIn("image", rows[0])
+
+	def test_boot_link_settings(self):
+		from frappe.boot import get_link_settings
+
+		self.assertNotIn("Role", get_link_settings())
+
+		frappe.db.set_value("DocType", "Role", "link_display_mode", "Select")
+		self.addCleanup(frappe.db.set_value, "DocType", "Role", "link_display_mode", "Search")
+		self.assertEqual(get_link_settings()["Role"], {"display_mode": "Select"})
+
+		# Customize Form (a Property Setter) wins over the DocType's own value
+		ps = frappe.get_doc(
+			{
+				"doctype": "Property Setter",
+				"doctype_or_field": "DocType",
+				"doc_type": "Role",
+				"property": "link_display_mode",
+				"property_type": "Select",
+				"value": "Search",
+			}
+		).insert()
+		self.addCleanup(ps.delete)
+		self.assertNotIn("Role", get_link_settings())
+
 	def test_link_field_order(self):
 		# Making a request to the search_link with the tree doctype
 		results = search_link(

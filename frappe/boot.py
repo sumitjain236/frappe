@@ -132,6 +132,7 @@ def get_bootinfo():
 	bootinfo.desk_settings = get_desk_settings()
 	bootinfo.app_logo_url = get_app_logo()
 	bootinfo.link_title_doctypes = get_link_title_doctypes()
+	bootinfo.link_settings = get_link_settings()
 	bootinfo.translated_doctypes = get_translated_doctypes()
 	bootinfo.doctype_ptype_map = get_doctype_ptype_map()
 	bootinfo.subscription_conf = add_subscription_conf()
@@ -564,6 +565,49 @@ def get_link_title_doctypes():
 		["doc_type as name"],
 	)
 	return filter_out_disabled_doctypes([d.name for d in dts + custom_dts if d])
+
+
+def get_link_settings() -> dict[str, dict]:
+	"""Per-DocType Link field behaviour that differs from the default, for the
+	combobox Link control: {doctype: {"display_mode": "Preload"|"Select",
+	"show_image": 1}}. Only non-default entries ship, so this stays small.
+	Customize Form values (Property Setters) override the DocType's own."""
+	from frappe.utils import cint
+
+	settings: dict[str, dict] = {}
+
+	for d in frappe.get_all(
+		"DocType",
+		filters={"link_display_mode": ["in", ["Preload", "Select"]]},
+		fields=["name", "link_display_mode"],
+	):
+		settings.setdefault(d.name, {})["display_mode"] = d.link_display_mode
+
+	for d in frappe.get_all("DocType", filters={"show_image_in_link": 1}, pluck="name"):
+		settings.setdefault(d, {})["show_image"] = 1
+
+	for ps in frappe.get_all(
+		"Property Setter",
+		filters={
+			"doctype_or_field": "DocType",
+			"property": ["in", ["link_display_mode", "show_image_in_link"]],
+		},
+		fields=["doc_type", "property", "value"],
+	):
+		entry = settings.setdefault(ps.doc_type, {})
+		if ps.property == "link_display_mode":
+			if ps.value in ("Preload", "Select"):
+				entry["display_mode"] = ps.value
+			else:
+				entry.pop("display_mode", None)
+		else:
+			if cint(ps.value):
+				entry["show_image"] = 1
+			else:
+				entry.pop("show_image", None)
+
+	enabled = set(filter_out_disabled_doctypes(list(settings)))
+	return {dt: v for dt, v in settings.items() if v and dt in enabled}
 
 
 def set_time_zone(bootinfo):

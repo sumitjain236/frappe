@@ -55,6 +55,7 @@ class LinkSearchResults(TypedDict):
 	value: str
 	description: str
 	label: NotRequired[str]
+	image: NotRequired[str]
 
 
 # this is called by the Link Field
@@ -71,19 +72,64 @@ def search_link(
 	ignore_user_permissions: bool = False,
 	*,
 	link_fieldname: str | None = None,
+	start: int = 0,
+	include_image: bool = False,
 ) -> list[LinkSearchResults]:
+	"""Rows for a Link field's dropdown.
+
+	`start` pages through results (the combobox loads more on scroll).
+	`include_image` adds the DocType's `image_field` value as `image` on each
+	row (standard search only; custom `query` methods return their own shape).
+	"""
 	results = search_widget(
 		doctype,
 		txt.strip(),
 		query,
 		searchfield=searchfield,
+		start=cint(start),
 		page_length=page_length,
 		filters=filters,
 		reference_doctype=reference_doctype,
 		ignore_user_permissions=ignore_user_permissions,
 		link_fieldname=link_fieldname,
 	)
-	return build_for_autosuggest(results, doctype=doctype)
+	rows = build_for_autosuggest(results, doctype=doctype)
+	if sbool(include_image):
+		add_images(rows, doctype)
+	return rows
+
+
+def get_image_field(doctype: str) -> str | None:
+	"""The DocType's image_field, if it is a real (non-virtual) column."""
+	meta = frappe.get_meta(doctype)
+	if not meta.image_field:
+		return None
+	df = meta.get_field(meta.image_field)
+	if not df or getattr(df, "is_virtual", False):
+		return None
+	return meta.image_field
+
+
+def add_images(rows: list[LinkSearchResults], doctype: str) -> None:
+	"""Attach each row's image_field value as `image`. A separate by-name
+	lookup rather than an extra search column, so it works the same for the
+	standard search and for custom `query` methods (which return their own
+	column layout)."""
+	image_field = get_image_field(doctype)
+	if not image_field or not rows:
+		return
+	images = dict(
+		frappe.get_all(
+			doctype,
+			filters={"name": ["in", [r["value"] for r in rows]]},
+			fields=["name", image_field],
+			as_list=True,
+		)
+	)
+	for row in rows:
+		image = images.get(row["value"])
+		if image:
+			row["image"] = image
 
 
 def make_dict_from_filter_list(filters: list) -> dict:
@@ -258,8 +304,11 @@ def search_widget(
 		formatted_fields.insert(1, f"{meta.title_field} as label")
 
 	order_by_based_on_meta = get_order_by(doctype, meta)
-	# `idx` is number of times a document is referred, check link_count.py
-	order_by = f"idx desc, {order_by_based_on_meta}"
+	# `idx` is number of times a document is referred, check link_count.py.
+	# `name` last as a tiebreaker: rows that share idx and modified (bulk
+	# inserts) would otherwise come back in arbitrary order, and a paged
+	# search (start > 0) could repeat or skip them.
+	order_by = f"idx desc, {order_by_based_on_meta}, `tab{doctype}`.`name` asc"
 
 	# With an empty `txt`, LOCATE always returns 1, so `_relevance` is the same constant for
 	# every row. The sort key then changes no ordering, but is still evaluated per row and
