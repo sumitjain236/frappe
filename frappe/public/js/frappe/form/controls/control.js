@@ -12,6 +12,8 @@ import "./date_range";
 import "./select";
 import "./link";
 import "./dynamic_link";
+import "./link_combobox";
+import "./dynamic_link_combobox";
 import "./text";
 import "./code";
 import "./text_editor";
@@ -45,8 +47,15 @@ import "./icon";
 import "./phone";
 import "./json";
 
+// fieldtypes that have a combobox-backed variant behind the
+// "Enable Combobox Link Field" system setting
+const COMBOBOX_FIELDTYPES = new Set(["Link", "Dynamic Link"]);
+
 frappe.ui.form.make_control = function (opts) {
 	var control_class_name = "Control" + opts.df.fieldtype.replace(/ /g, "");
+	if (COMBOBOX_FIELDTYPES.has(opts.df.fieldtype) && frappe.ui.form.is_combobox_link_enabled()) {
+		control_class_name += "Combobox";
+	}
 	if (frappe.ui.form[control_class_name]) {
 		return new frappe.ui.form[control_class_name](opts);
 	} else {
