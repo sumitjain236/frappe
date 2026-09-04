@@ -570,7 +570,7 @@ def get_link_title_doctypes():
 def get_link_settings() -> dict[str, dict]:
 	"""Per-DocType Link field behaviour that differs from the default, for the
 	combobox Link control: {doctype: {"display_mode": "Preload"|"Select",
-	"show_image": 1}}. Only non-default entries ship, so this stays small.
+	"show_image": 1, "image_field": "user_image"}}. Only non-default entries ship, so this stays small.
 	Customize Form values (Property Setters) override the DocType's own."""
 	from frappe.utils import cint
 
@@ -606,8 +606,23 @@ def get_link_settings() -> dict[str, dict]:
 			else:
 				entry.pop("show_image", None)
 
-	enabled = set(filter_out_disabled_doctypes(list(settings)))
-	return {dt: v for dt, v in settings.items() if v and dt in enabled}
+	# the client fetches avatars by name with this field, so it doesn't need
+	# the DocType's meta loaded; a DocType without an image field can't show
+	# images at all
+	# Property Setters outlive a deleted DocType; drop those before touching meta
+	enabled = filter_out_disabled_doctypes(list(settings))
+	existing = set(frappe.get_all("DocType", filters={"name": ["in", enabled]}, pluck="name"))
+	settings = {dt: v for dt, v in settings.items() if v and dt in existing}
+	for dt, entry in settings.items():
+		if not entry.get("show_image"):
+			continue
+		image_field = frappe.get_meta(dt).image_field
+		if image_field:
+			entry["image_field"] = image_field
+		else:
+			entry.pop("show_image", None)
+
+	return {dt: v for dt, v in settings.items() if v}
 
 
 def set_time_zone(bootinfo):

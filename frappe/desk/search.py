@@ -74,12 +74,15 @@ def search_link(
 	link_fieldname: str | None = None,
 	start: int = 0,
 	include_image: bool = False,
+	keep_order: bool = False,
 ) -> list[LinkSearchResults]:
 	"""Rows for a Link field's dropdown.
 
 	`start` pages through results (the combobox loads more on scroll).
-	`include_image` adds the DocType's `image_field` value as `image` on each
-	row (standard search only; custom `query` methods return their own shape).
+	`include_image` adds the DocType's `image_field` value as `image`.
+	`keep_order` returns rows in the database order (most referenced, then
+	most recent, then a `name` tiebreaker) instead of re-sorting each page by
+	relevance — a paged list must not re-sort every page on its own.
 	"""
 	results = search_widget(
 		doctype,
@@ -92,6 +95,7 @@ def search_link(
 		reference_doctype=reference_doctype,
 		ignore_user_permissions=ignore_user_permissions,
 		link_fieldname=link_fieldname,
+		keep_order=sbool(keep_order),
 	)
 	rows = build_for_autosuggest(results, doctype=doctype)
 	if sbool(include_image):
@@ -163,6 +167,8 @@ def search_widget(
 	for_link_validation: bool = False,
 	# this param has been added temporarily for compatibility - may be removed later
 	query_filters_as_dict: bool = False,
+	# skip the per-page relevance re-sort (rows come in database order)
+	keep_order: bool = False,
 ):
 	if ignore_user_permissions:
 		if reference_doctype and link_fieldname:
@@ -239,7 +245,8 @@ def search_widget(
 		if not for_link_validation:
 			if meta.translated_doctype:
 				values = filter_translated(values, txt, as_dict)
-				values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
+				if not keep_order:
+					values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
 				values = values[:page_length]
 
 		return values
@@ -354,7 +361,8 @@ def search_widget(
 		# Sorting the values array so that relevant results always come first
 		# This will first bring elements on top in which query is a prefix of element
 		# Then it will bring the rest of the elements and sort them in lexicographical order
-		values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
+		if not keep_order:
+			values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
 
 		# remove _relevance from results
 		if add_relevance:

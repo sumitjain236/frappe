@@ -142,10 +142,13 @@ class TestSearch(IntegrationTestCase):
 	def test_boot_link_settings(self):
 		from frappe.boot import get_link_settings
 
+		# start from the default whatever the site has set
+		original = frappe.db.get_value("DocType", "Role", "link_display_mode")
+		self.addCleanup(frappe.db.set_value, "DocType", "Role", "link_display_mode", original)
+		frappe.db.set_value("DocType", "Role", "link_display_mode", "Search")
 		self.assertNotIn("Role", get_link_settings())
 
 		frappe.db.set_value("DocType", "Role", "link_display_mode", "Select")
-		self.addCleanup(frappe.db.set_value, "DocType", "Role", "link_display_mode", "Search")
 		self.assertEqual(get_link_settings()["Role"], {"display_mode": "Select"})
 
 		# Customize Form (a Property Setter) wins over the DocType's own value
@@ -160,6 +163,15 @@ class TestSearch(IntegrationTestCase):
 			}
 		).insert()
 		self.addCleanup(ps.delete)
+		self.assertNotIn("Role", get_link_settings())
+
+		# show_image ships the image field's name; a DocType without one
+		# can't show images, so the flag is dropped
+		frappe.db.set_value("DocType", "User", "show_image_in_link", 1)
+		self.addCleanup(frappe.db.set_value, "DocType", "User", "show_image_in_link", 0)
+		self.assertEqual(get_link_settings()["User"], {"show_image": 1, "image_field": "user_image"})
+		frappe.db.set_value("DocType", "Role", "show_image_in_link", 1)
+		self.addCleanup(frappe.db.set_value, "DocType", "Role", "show_image_in_link", 0)
 		self.assertNotIn("Role", get_link_settings())
 
 	def test_link_field_order(self):
