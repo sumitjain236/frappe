@@ -308,7 +308,10 @@ frappe.ui.form.ControlLinkCombobox = class ControlLinkCombobox extends frappe.ui
 	// once: get_query functions can be costly and must see the same state for
 	// the rows and for the filter chips
 	before_open() {
-		const doctype = this.get_link_doctype();
+		// unguarded on purpose: a Dynamic Link pointing at a Single raises
+		// the same "not a valid DocType" message the classic control shows
+		// when the user starts searching
+		const doctype = this.get_options() || null;
 		const combobox = this.combobox;
 		this.open_args = this.get_search_args("") || null;
 		this.open_mode = this.display_mode();

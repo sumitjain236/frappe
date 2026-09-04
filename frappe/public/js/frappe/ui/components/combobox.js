@@ -53,7 +53,7 @@ frappe.provide("frappe.ui");
  * @property {"start"|"center"|"end"} [align="start"]
  * @property {number} [offset=4]
  * @property {string} [css_class] Extra classes on the trigger.
- * @property {boolean} [value_input=false] Render the trigger's value as a read-only <input> (exposed as `input_el`) instead of a span, so form code that reads or focuses a real input keeps working.
+ * @property {boolean} [value_input=false] Render the trigger's value as an <input> (exposed as `input_el`) that refuses edits, instead of a span, so form code that reads, focuses or types into a real input keeps working.
  * @property {Array<{icon: string, title: string, href?: string, css_class?: string, onclick?: function}>} [actions] Extra ghost buttons on the trigger, after the clear button (e.g. "open record"). With `href` the action is a link. Elements are on `action_els` in the same order.
  * @property {function} [before_open] Called with the instance right before the panel is built — a chance to update `opts` (footer, placeholders, filters, hide_search, page_size) for this open.
  * @property {function} [on_change] Called with (value, option) after a pick or a clear.
@@ -242,12 +242,16 @@ frappe.ui.Combobox = class Combobox {
 		this.prefix_el.hidden = true;
 
 		if (this.opts.value_input) {
-			// a real input for form controls: readonly, so typing never lands
-			// in it (the keydown bubbles to the trigger and opens the panel)
+			// a real input for form controls. Not readonly (test drivers and
+			// scripts refuse to type into those); instead every edit is
+			// refused at beforeinput, so typing, paste and IME never land in
+			// it — the keydown bubbles to the trigger and opens the panel,
+			// where the search box takes over
 			this.value_el = document.createElement("input");
 			this.value_el.type = "text";
-			this.value_el.readOnly = true;
 			this.value_el.setAttribute("autocomplete", "off");
+			this.value_el.setAttribute("aria-readonly", "true");
+			this.value_el.addEventListener("beforeinput", (e) => this.on_value_input(e));
 			this.input_el = this.value_el;
 		} else {
 			this.value_el = document.createElement("span");
@@ -326,6 +330,20 @@ frappe.ui.Combobox = class Combobox {
 		t.addEventListener("pointerdown", this.onpointerdown);
 		t.addEventListener("click", this.onclick);
 		t.addEventListener("keydown", this.onkeydown);
+	}
+
+	// an edit attempted on the value input: refused, and turned into the
+	// same action a keydown would be — text opens the panel with it as the
+	// query, a deletion clears. Covers input that never sends keydown
+	// (virtual keyboards, IME composition, dictation, paste, test drivers).
+	on_value_input(e) {
+		e.preventDefault();
+		if (this.disabled || this.is_open) return;
+		if (e.inputType.startsWith("delete")) {
+			if (this.clearable && this.value != null) this.clear();
+		} else if (e.data && !this.opts.hide_search) {
+			this.open({ motion: "instant", query: e.data });
+		}
 	}
 
 	// one owner action: a ghost icon button, or a link when it has an href

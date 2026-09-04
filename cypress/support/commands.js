@@ -172,21 +172,38 @@ Cypress.Commands.add("fill_field", (fieldname, value, fieldtype = "Data") => {
 	}
 
 	if (["Link", "Dynamic Link"].includes(fieldtype)) {
-		cy.get("@input").clear().focus();
-		// Wait for dropdown to appear (request might be cached, so don't wait for network)
-		cy.get("@input").parent().findByRole("listbox").as("dropdown");
-		cy.get("@dropdown").should("be.visible");
-		cy.get("@input").type(value, { delay: 100 });
-		// Wait for dropdown to update with search results
-		cy.get("@dropdown")
-			.should("be.visible")
-			.find("div[role='option']")
-			.first()
-			.should("include.text", value);
-		cy.get("@input").type("{enter}");
-		cy.get("@input").blur();
-		cy.get("@dropdown").should("not.exist");
-		cy.get("@input").should("have.value", value);
+		cy.get("@input").then(($input) => {
+			if ($input.closest(".es-combobox").length) {
+				// combobox Link field (System Settings > Enable Combobox Link
+				// Field): typing on the field opens the panel and continues in
+				// its search box; Enter picks the highlighted row
+				cy.wrap($input).clear().type(value, { delay: 100 });
+				cy.get(".es-combobox__panel[data-state='open']").as("dropdown");
+				cy.get("@dropdown")
+					.find(".es-combobox__list [role='option']")
+					.first()
+					.should("include.text", value);
+				cy.get("@dropdown").find(".es-combobox__input").type("{enter}");
+				cy.get("@dropdown").should("not.exist");
+				cy.get("@input").should("have.value", value);
+				return;
+			}
+			cy.wrap($input).clear().focus();
+			// Wait for dropdown to appear (request might be cached, so don't wait for network)
+			cy.wrap($input).parent().findByRole("listbox").as("dropdown");
+			cy.get("@dropdown").should("be.visible");
+			cy.wrap($input).type(value, { delay: 100 });
+			// Wait for dropdown to update with search results
+			cy.get("@dropdown")
+				.should("be.visible")
+				.find("div[role='option']")
+				.first()
+				.should("include.text", value);
+			cy.wrap($input).type("{enter}");
+			cy.wrap($input).blur();
+			cy.get("@dropdown").should("not.exist");
+			cy.get("@input").should("have.value", value);
+		});
 	} else if (fieldtype === "Select") {
 		cy.get("@input").select(value);
 	} else {

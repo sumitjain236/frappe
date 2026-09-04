@@ -86,7 +86,7 @@
     color: var(--ink-gray-4);
 }
 
-/* the value_input form: a read-only input that looks like the span. The
+/* the value_input form: an input (edits refused) that looks like the span. The
    trigger owns the look (background, radius, focus ring), so the input is
    bare — !important beats the desk's .form-control / has-error input rules */
 input.es-combobox__value {
