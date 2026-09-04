@@ -74,6 +74,8 @@ frappe.ui.FilterGroup = class {
 				if (
 					$(e.target).parents(".filter-popover").length === 0 &&
 					$(e.target).parents(".filter-box").length === 0 &&
+					// a Link field's combobox panel lives in <body>, not in the popover
+					$(e.target).parents(".es-combobox__panel").length === 0 &&
 					this.filter_button.find($(e.target)).length === 0 &&
 					!$(e.target).is(this.filter_button) &&
 					!in_datepicker
