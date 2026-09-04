@@ -15,16 +15,16 @@
  *   </div>
  *
  *   <div class="es-menu es-combobox__panel" role="listbox" data-state="open">
- *     <div class="es-combobox__search"><svg/><input class="es-combobox__input">(optional <kbd class="es-combobox__hint">esc</kbd>)</div>
+ *     <div class="es-combobox__search"><svg/><input class="es-combobox__input"></div>
  *     <div class="es-combobox__list"> .es-menu__group > .es-menu__item[role=option] … </div>
  *     <div class="es-combobox__filters"><svg/>Filtered by <span class="es-badge">Company: FT</span></div>
  *     <div class="es-combobox__footer"> custom .es-menu__item rows </div>
  *   </div>
  *
  * Row affixes inside .es-menu__item: .es-avatar or svg first, then
- * .es-menu__label (with an optional .es-menu__description line under it),
- * then .es-badge right beside it, and .es-combobox__check pushed to the
- * end on the selected row.
+ * .es-menu__label (title text, an optional .es-badge right after it, and an
+ * optional .es-menu__description line under it), then .es-combobox__check
+ * pushed to the end on the selected row.
  *
  * Trigger attributes: data-state="open" while the panel is up,
  * data-disabled / aria-disabled, aria-invalid="true" for a bad value. */
@@ -49,7 +49,8 @@
     outline: none;
 }
 
-.es-combobox:focus-visible {
+.es-combobox:focus-visible,
+.es-combobox:has(> .es-combobox__value:focus) {
     outline: var(--focus-outline-default);
     outline-offset: 0;
 }
@@ -83,6 +84,33 @@
 
 .es-combobox__value[data-placeholder] {
     color: var(--ink-gray-4);
+}
+
+/* the value_input form: a read-only input that looks like the span. The
+   trigger owns the look (background, radius, focus ring), so the input is
+   bare — !important beats the desk's .form-control / has-error input rules */
+input.es-combobox__value {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+    cursor: pointer;
+    outline: none;
+    text-overflow: ellipsis;
+}
+
+input.es-combobox__value::placeholder {
+    color: var(--ink-gray-4);
+}
+
+input.es-combobox__value:disabled {
+    color: var(--ink-gray-5);
+    cursor: not-allowed;
 }
 
 /* clear (and any owner-added action) buttons: only on hover / focus / open */
@@ -124,7 +152,7 @@
 .es-combobox__panel {
     display: flex;
     flex-direction: column;
-    /* the owner sets min-width inline to match the trigger */
+    /* reposition() sets the width inline to match the trigger */
     max-height: calc(var(--spacing) * 80);
     /* the list scrolls, not the panel (the search row stays put) */
     overflow: hidden;
@@ -175,18 +203,6 @@
     color: var(--ink-gray-4);
 }
 
-/* the "esc" hint; plain, not the dark bootstrap kbd */
-.es-combobox__search > .es-combobox__hint {
-    padding: 0 calc(var(--spacing) * 1);
-    border: 1px solid var(--outline-gray-2);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--ink-gray-4);
-    font-size: var(--text-xs);
-    line-height: calc(var(--spacing) * 4);
-    box-shadow: none;
-}
-
 /* applied filters: icon + "Filtered by" + chips, under the list */
 .es-combobox__filters {
     display: flex;
@@ -205,8 +221,6 @@
     width: calc(var(--spacing) * 3.5);
     height: calc(var(--spacing) * 3.5);
     flex-shrink: 0;
-    /* desk's global .es-menu svg rule centers icons with auto margins */
-    margin: 0;
 }
 
 .es-combobox__filters-label {
@@ -256,15 +270,19 @@
     flex-shrink: 0;
 }
 
-/* the label takes only the room it needs so a badge sits right next to it
-   (same column on every row); only the check is pushed to the end, so a
-   selected row's badge doesn't shift left of its neighbours' */
-.es-combobox__panel .es-menu__label {
-    flex: 0 1 auto;
+/* frappe.utils.icon() emits .icon, and the desk's .icon rule gives it auto
+   side margins; in a flex row without a growing child (the filter band, a
+   footer row) that floats the icon into the free space */
+.es-combobox svg.icon,
+.es-combobox__panel svg.icon {
+    margin: 0;
 }
 
-.es-combobox__panel .es-menu__item > .es-badge {
-    flex-shrink: 0;
+/* the badge sits on the title line, right after the text (same column on
+   every row); only the check is pushed to the end */
+.es-combobox__badge {
+    margin-inline-start: calc(var(--spacing) * 2);
+    vertical-align: 1px;
 }
 
 .es-combobox__check {

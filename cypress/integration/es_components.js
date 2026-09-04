@@ -407,6 +407,16 @@ context("Espresso components", () => {
 			);
 		});
 
+		it("loads the next page when the list is scrolled to its end", () => {
+			trigger("Load more on scroll").click();
+			cy.get(".es-combobox__panel [role='option']").should("have.length", 20);
+			cy.get(".es-combobox__panel .es-menu__loading").should("exist");
+			cy.get(".es-combobox__list").scrollTo("bottom");
+			cy.get(".es-combobox__panel [role='option']").should("have.length", 40);
+			// the rows that were on screen stay where they were
+			cy.get(".es-combobox__panel [role='option']").first().should("contain", "Item 001");
+		});
+
 		it("has no search row when hide_search is set and clears via the × button", () => {
 			trigger("No search row").as("trigger");
 			cy.get("@trigger").should("contain", "Frappe Technologies");

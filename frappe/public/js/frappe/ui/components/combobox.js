@@ -1,5 +1,6 @@
 import { place, SIDES, ALIGNS } from "./position.js";
-import { validated } from "./utils.js";
+import { validated, is_thenable, is_group, icon_html } from "./utils.js";
+import { normalize_options as normalize_menu_options } from "./menu.js";
 
 frappe.provide("frappe.ui");
 
@@ -10,7 +11,8 @@ frappe.provide("frappe.ui");
  * @property {string} [description] Smaller muted second line under the label (the docname, search fields).
  * @property {string} [icon] Lucide icon name shown before the label.
  * @property {string} [image] Avatar image URL shown before the label (falls back to the label's initial).
- * @property {{label: string, theme?: string}} [badge] Small badge at the end of the row.
+ * @property {boolean} [avatar] Show an initial-letter avatar even without an image (keeps rows aligned when only some have pictures).
+ * @property {{label: string, theme?: string}} [badge] Small badge after the label text.
  * @property {boolean} [disabled] Inert row, skipped by keyboard navigation.
  */
 
@@ -34,23 +36,26 @@ frappe.provide("frappe.ui");
 /**
  * @typedef {Object} ComboboxOpts
  * @property {Element|JQuery} [trigger] An existing element to use as the trigger. Omit to have one made.
- * @property {Array|function} options Rows: strings, ComboboxOption, ComboboxGroup or ComboboxCustomOption entries. A function is called with (query, { start }) on open and on every query change and may return the rows or a Promise of them — the panel shows a loading state until it settles.
+ * @property {Array|function} options Rows: strings, ComboboxOption, ComboboxGroup or ComboboxCustomOption entries. A function is called with (query, { start }) on open and on every query change and may return the rows, a Promise of them, or `{ rows, has_more }` — the panel shows a loading state until it settles. With `filterable` on, a function is expected to be cheap (a preloaded list) and is called without debounce; returning the same array again skips re-processing it.
+ * @property {number} [page_size] With a function `options`: when a call returns this many rows (or says `has_more`) there may be more, and scrolling near the end of the list calls it again with `start` advanced by `page_size` and appends the new rows (already-listed values are skipped; a page that adds nothing ends the paging).
  * @property {string} [value] Initial value.
- * @property {string} [placeholder="Select"] Trigger text when nothing is selected.
+ * @property {string} [placeholder="Select"] Trigger text when nothing is selected. With `value_input`, leave it out to keep the input's own placeholder attribute.
  * @property {string} [search_placeholder="Search..."] Placeholder of the search row.
- * @property {boolean} [escape_hint=false] Show a small "esc" hint at the end of the search row.
  * @property {boolean} [filterable=true] Filter rows on the client as the user types. Turn off when `options` does the filtering (server search).
  * @property {boolean} [hide_search=false] No search row — for short lists that read like a plain select.
- * @property {boolean} [clearable=true] Show a clear (×) button on the trigger when a value is set.
+ * @property {boolean} [clearable=true] Show a clear (×) button on the trigger when a value is set; Backspace / Delete on the closed trigger clear too.
  * @property {boolean} [disabled=false]
  * @property {string} [empty_text="No results"] Shown when nothing matches.
- * @property {string[]|string} [filters] Filters the list is restricted by, shown as chips under the list ("Customer Group: Commercial"). A plain string is shown as one line of text. Rendered as text, never HTML.
+ * @property {string[]|string|function} [filters] Filters the list is restricted by, shown as chips under the list ("Customer Group: Commercial"). A plain string is shown as one line of text. A function is called on every open and may return the value or a Promise of it. Rendered as text, never HTML.
  * @property {ComboboxCustomOption[]} [footer] Custom rows pinned under the list (Create new, Advanced search).
- * @property {boolean} [match_trigger_width=true] Panel is at least as wide as the trigger.
+ * @property {boolean} [match_trigger_width=true] Panel takes the trigger's width (never narrower than 240px, never wider than the viewport).
  * @property {"top"|"bottom"} [side="bottom"]
  * @property {"start"|"center"|"end"} [align="start"]
  * @property {number} [offset=4]
  * @property {string} [css_class] Extra classes on the trigger.
+ * @property {boolean} [value_input=false] Render the trigger's value as a read-only <input> (exposed as `input_el`) instead of a span, so form code that reads or focuses a real input keeps working.
+ * @property {Array<{icon: string, title: string, href?: string, css_class?: string, onclick?: function}>} [actions] Extra ghost buttons on the trigger, after the clear button (e.g. "open record"). With `href` the action is a link. Elements are on `action_els` in the same order.
+ * @property {function} [before_open] Called with the instance right before the panel is built — a chance to update `opts` (footer, placeholders, filters, hide_search, page_size) for this open.
  * @property {function} [on_change] Called with (value, option) after a pick or a clear.
  * @property {function} [on_open]
  * @property {function} [on_close] Called with the reason: "select" | "escape" | "outside" | "tab" | "owner".
@@ -64,29 +69,15 @@ const MIN_PANEL_WIDTH = 240;
 const VIEWPORT_PAD = 8;
 // filter chips shown before the "+N more" chip
 const MAX_FILTER_CHIPS = 4;
+// how close to the end of the list (px) the next page starts loading
+const LOAD_MORE_THRESHOLD = 48;
 const BADGE_THEMES = ["gray", "blue", "green", "amber", "red", "violet", "orange"];
+const COMPONENT = "Combobox";
 
 let id_counter = 0;
 
-function is_thenable(value) {
-	return !!value && typeof value.then === "function";
-}
-
-function is_group(entry) {
-	return entry && typeof entry === "object" && "group" in entry && Array.isArray(entry.options);
-}
-
 function is_custom(entry) {
 	return entry && typeof entry === "object" && entry.type === "custom";
-}
-
-// icon names end up inside svg use hrefs, so only plain names pass
-function icon_html(name, svg_class) {
-	if (typeof name !== "string" || !/^[a-z0-9-]+$/i.test(name)) {
-		console.warn(`frappe.ui.Combobox: icons take a lucide icon name, got "${name}"`);
-		return "";
-	}
-	return frappe.utils.icon(name, "sm", "", "", svg_class, true);
 }
 
 // one row's canonical shape: strings become { label, value }
@@ -100,40 +91,54 @@ function normalize_option(entry) {
 	return { ...entry, label: entry.label == null ? String(value) : String(entry.label), value };
 }
 
-// flatten the mixed list into explicit groups (loose rows become unlabeled
-// groups in source order); custom rows are collected separately since they
-// never take part in filtering
+// { groups, custom }: the menu's group flattener does the layout work; this
+// adds string rows and pulls the custom rows (Create new...) aside since
+// they never take part in filtering
 export function normalize_options(options) {
-	const groups = [];
-	const custom = [];
-	let current = null;
-	const flush = () => {
-		if (current && current.options.length) groups.push(current);
-		current = null;
-	};
-	for (const entry of options || []) {
-		if (entry == null) continue;
-		if (is_custom(entry)) {
-			custom.push(entry);
-			continue;
-		}
-		if (is_group(entry)) {
-			flush();
-			const items = entry.options.map(normalize_option).filter(Boolean);
-			if (items.length) {
-				groups.push({
-					group: entry.group || "",
-					hide_label: !!entry.hide_label,
-					options: items,
-				});
-			}
-			continue;
-		}
-		if (!current) current = { group: "", hide_label: true, options: [] };
-		current.options.push(normalize_option(entry));
+	const entries = (options || []).filter((entry) => entry != null);
+	const rows = entries
+		.filter((entry) => !is_custom(entry))
+		.map((entry) =>
+			is_group(entry)
+				? { ...entry, options: entry.options.map(normalize_option).filter(Boolean) }
+				: normalize_option(entry)
+		);
+	return { groups: normalize_menu_options(rows), custom: entries.filter(is_custom) };
+}
+
+// a later page merged in place: unlabeled rows continue the previous
+// unlabeled group, labeled groups stay separate sections; values already
+// listed are dropped. Returns how many rows were new.
+function merge_normalized(base, extra) {
+	const seen = new Set(base.groups.flatMap((group) => group.options.map((o) => o.value)));
+	let added = 0;
+	for (const group of extra.groups) {
+		const options = group.options.filter((o) => !seen.has(o.value));
+		if (!options.length) continue;
+		options.forEach((o) => seen.add(o.value));
+		added += options.length;
+		const last = base.groups[base.groups.length - 1];
+		if (last && !last.group && !group.group) last.options.push(...options);
+		else base.groups.push({ ...group, options });
 	}
-	flush();
-	return { groups, custom };
+	base.custom.push(...extra.custom);
+	return added;
+}
+
+// a source may answer with rows, or with { rows, has_more } when it knows
+function unpack(value) {
+	if (value && !Array.isArray(value) && typeof value === "object" && "rows" in value) {
+		return { rows: value.rows || [], has_more: value.has_more };
+	}
+	return { rows: value || [], has_more: undefined };
+}
+
+function find_in(groups, value) {
+	for (const group of groups) {
+		const hit = group.options.find((o) => o.value === value);
+		if (hit) return hit;
+	}
+	return null;
 }
 
 function matches(option, query) {
@@ -165,16 +170,14 @@ function fill_label(el, text, query) {
 // the avatar / icon shown before a label, in rows and on the trigger
 function prefix_html(option, size) {
 	if (option.image || option.avatar) {
-		return frappe.ui.avatar.html({
-			image: option.image,
-			label: option.label,
-			size,
-			shape: option.avatar_shape,
-			theme: option.avatar_theme,
-		});
+		return frappe.ui.avatar.html({ image: option.image, label: option.label, size });
 	}
-	if (option.icon) return icon_html(option.icon, "");
+	if (option.icon) return icon_html(option.icon, "", COMPONENT);
 	return "";
+}
+
+function needs_icon_space(options) {
+	return options.some((o) => o.icon || o.image || o.avatar);
 }
 
 /**
@@ -194,8 +197,8 @@ frappe.ui.Combobox = class Combobox {
 	/** @param {ComboboxOpts} opts */
 	constructor(opts = {}) {
 		this.opts = opts;
-		this.side = validated(opts.side, SIDES, "side", "Combobox") || "bottom";
-		this.align = validated(opts.align, ALIGNS, "align", "Combobox") || "start";
+		this.side = validated(opts.side, SIDES, "side", COMPONENT) || "bottom";
+		this.align = validated(opts.align, ALIGNS, "align", COMPONENT) || "start";
 		this.offset = opts.offset == null ? 4 : opts.offset;
 		this.filterable = opts.filterable !== false;
 		this.clearable = opts.clearable !== false;
@@ -203,6 +206,9 @@ frappe.ui.Combobox = class Combobox {
 		this.options = opts.options || [];
 		this.value = opts.value == null ? null : opts.value;
 		this.selected = null; // the option object behind this.value, when known
+		this.normalized = null; // { groups, custom } of the last resolved options
+		this.next_start = 0; // server offset of the next page for this query
+		this.has_more = false;
 		this.query = "";
 		this.panel = null;
 		this.rows = [];
@@ -230,15 +236,27 @@ frappe.ui.Combobox = class Combobox {
 		t.setAttribute("role", "combobox");
 		t.setAttribute("aria-haspopup", "listbox");
 		t.setAttribute("aria-expanded", "false");
-		t.setAttribute("tabindex", "0");
 
 		this.prefix_el = document.createElement("span");
 		this.prefix_el.className = "es-combobox__prefix";
 		this.prefix_el.hidden = true;
 
-		this.value_el = document.createElement("span");
+		if (this.opts.value_input) {
+			// a real input for form controls: readonly, so typing never lands
+			// in it (the keydown bubbles to the trigger and opens the panel)
+			this.value_el = document.createElement("input");
+			this.value_el.type = "text";
+			this.value_el.readOnly = true;
+			this.value_el.setAttribute("autocomplete", "off");
+			this.input_el = this.value_el;
+		} else {
+			this.value_el = document.createElement("span");
+		}
 		this.value_el.className = "es-combobox__value";
 
+		// order, left to right: clear, then the owner's actions (open link...),
+		// then the chevron — the more often a button is used, the closer it
+		// sits to the text
 		this.actions_el = document.createElement("span");
 		this.actions_el.className = "es-combobox__actions";
 		if (this.clearable) {
@@ -251,16 +269,22 @@ frappe.ui.Combobox = class Combobox {
 				onclick: (e) => {
 					e.stopPropagation();
 					this.clear();
-					this.trigger_el.focus();
+					this.focus();
 				},
 			})[0];
+		}
+		this.action_els = (this.opts.actions || []).map((action) => this.make_action(action));
+		for (const el of [this.clear_btn, ...this.action_els].filter(Boolean)) {
 			// pointerdown would otherwise count as a trigger press
-			this.clear_btn.addEventListener("pointerdown", (e) => e.stopPropagation());
-			this.actions_el.appendChild(this.clear_btn);
+			el.addEventListener("pointerdown", (e) => e.stopPropagation());
+			this.actions_el.appendChild(el);
 		}
 
 		t.append(this.prefix_el, this.value_el, this.actions_el);
-		t.insertAdjacentHTML("beforeend", icon_html("chevron-down", "es-combobox__chevron"));
+		t.insertAdjacentHTML(
+			"beforeend",
+			icon_html("chevron-down", "es-combobox__chevron", COMPONENT)
+		);
 
 		this.set_disabled(!!this.opts.disabled);
 
@@ -287,10 +311,14 @@ frappe.ui.Combobox = class Combobox {
 			) {
 				e.preventDefault();
 				this.open({ motion: "instant" });
+			} else if (e.key === "Backspace" || e.key === "Delete") {
+				// keyboard users clear here; the × button is out of the tab order
+				if (!this.clearable || this.value == null) return;
+				e.preventDefault();
+				this.clear();
 			} else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				// type on the closed trigger: open and start the search with
 				// that character, so tab-and-type data entry still works
-				if (this.opts.hide_search) return;
 				e.preventDefault();
 				this.open({ motion: "instant", query: e.key });
 			}
@@ -300,6 +328,24 @@ frappe.ui.Combobox = class Combobox {
 		t.addEventListener("keydown", this.onkeydown);
 	}
 
+	// one owner action: a ghost icon button, or a link when it has an href
+	// (so middle-click / ctrl-click open a tab)
+	make_action(action) {
+		return frappe.ui.button({
+			icon: action.icon,
+			variant: "ghost",
+			size: "xs",
+			title: action.title,
+			href: action.href,
+			css_class: action.css_class,
+			attrs: { tabindex: "-1" },
+			onclick: (e) => {
+				e.stopPropagation();
+				action.onclick && action.onclick(e, this);
+			},
+		})[0];
+	}
+
 	set_disabled(disabled) {
 		this.disabled = !!disabled;
 		const t = this.trigger_el;
@@ -307,37 +353,43 @@ frappe.ui.Combobox = class Combobox {
 			t.setAttribute("aria-disabled", "true");
 			t.setAttribute("data-disabled", "");
 			t.setAttribute("tabindex", "-1");
+			if (this.input_el) this.input_el.tabIndex = -1;
 			this.close("owner");
 		} else {
 			t.removeAttribute("aria-disabled");
 			t.removeAttribute("data-disabled");
-			t.setAttribute("tabindex", "0");
+			// with a value input, that input is the focusable part
+			t.setAttribute("tabindex", this.input_el ? "-1" : "0");
+			if (this.input_el) this.input_el.tabIndex = 0;
 		}
+		this.update_clear_button();
+	}
+
+	update_clear_button() {
+		if (!this.clear_btn) return;
+		this.clear_btn.hidden = this.value == null || this.disabled;
 	}
 
 	// what the trigger shows: the selected option's label (and avatar/icon),
 	// or the placeholder
 	set_display() {
 		const option = this.selected;
-		if (option) {
-			this.value_el.textContent = option.label;
-			this.value_el.removeAttribute("data-placeholder");
-			const html = prefix_html(option, "xs");
-			this.prefix_el.innerHTML = html;
-			this.prefix_el.hidden = !html;
-		} else if (this.value != null && this.value !== "") {
-			// value known, option not (yet): show the raw value
-			this.value_el.textContent = String(this.value);
-			this.value_el.removeAttribute("data-placeholder");
-			this.prefix_el.hidden = true;
+		const text = option ? option.label : this.value == null ? null : String(this.value);
+		if (this.input_el) {
+			this.input_el.value = text == null ? "" : text;
+			// leave the input's own placeholder attribute alone unless one
+			// was given here (form controls set theirs from the docfield)
+			if (this.opts.placeholder != null) this.input_el.placeholder = this.opts.placeholder;
 		} else {
-			this.value_el.textContent = this.opts.placeholder || __("Select");
-			this.value_el.setAttribute("data-placeholder", "");
-			this.prefix_el.hidden = true;
+			this.value_el.textContent =
+				text == null ? this.opts.placeholder ?? __("Select") : text;
 		}
-		if (this.clear_btn) {
-			this.clear_btn.hidden = this.value == null || this.value === "" || this.disabled;
-		}
+		this.value_el.toggleAttribute("data-placeholder", text == null);
+
+		const html = option ? prefix_html(option, "xs") : "";
+		this.prefix_el.innerHTML = html;
+		this.prefix_el.hidden = !html;
+		this.update_clear_button();
 	}
 
 	// ---- value ----
@@ -347,18 +399,17 @@ frappe.ui.Combobox = class Combobox {
 	}
 
 	/**
-	 * Set the value from code. Pass `label` when the option isn't in the
-	 * current rows (a server-searched record), so the trigger can show it.
-	 * Silent: no on_change.
+	 * Set the value from code. Pass `label` (and `image` / `avatar`) when the
+	 * option isn't in the current rows (a server-searched record), so the
+	 * trigger can show it. Silent: no on_change.
 	 */
-	set_value(value, { label, silent = true } = {}) {
+	set_value(value, { label, image, avatar, silent = true } = {}) {
 		const next = value == null || value === "" ? null : value;
 		const changed = next !== this.value;
 		this.value = next;
-		this.selected =
-			next == null
-				? null
-				: this.find_option(next) || (label ? { label, value: next } : null);
+		if (next == null) this.selected = null;
+		else if (label) this.selected = { label, value: next, image, avatar };
+		else this.selected = this.find_option(next);
 		this.set_display();
 		if (changed && !silent)
 			this.opts.on_change && this.opts.on_change(this.value, this.selected);
@@ -371,9 +422,10 @@ frappe.ui.Combobox = class Combobox {
 	}
 
 	find_option(value) {
-		if (!Array.isArray(this.options))
-			return this.last_groups ? find_in(this.last_groups, value) : null;
-		return find_in(normalize_options(this.options).groups, value);
+		const groups = Array.isArray(this.options)
+			? normalize_options(this.options).groups
+			: this.normalized?.groups;
+		return groups ? find_in(groups, value) : null;
 	}
 
 	// replace the rows (static lists); re-renders if open
@@ -391,12 +443,18 @@ frappe.ui.Combobox = class Combobox {
 		return !!this.panel;
 	}
 
+	// where keyboard focus lives while the panel is closed
+	get focus_el() {
+		return this.input_el || this.trigger_el;
+	}
+
 	focus() {
-		this.trigger_el.focus();
+		this.focus_el.focus();
 	}
 
 	open({ motion = "animated", query = "" } = {}) {
 		if (this.panel || this.disabled) return;
+		this.opts.before_open && this.opts.before_open(this);
 
 		const panel = document.createElement("div");
 		panel.className = "es-menu es-combobox__panel";
@@ -404,12 +462,20 @@ frappe.ui.Combobox = class Combobox {
 		panel.setAttribute("role", "listbox");
 		panel.setAttribute("tabindex", "-1");
 		panel.setAttribute("data-motion", motion);
-		panel.setAttribute("aria-labelledby", this.trigger_el.id || "");
+		if (this.trigger_el.id) panel.setAttribute("aria-labelledby", this.trigger_el.id);
+		// "open" from here on: the async filters / options that start below
+		// compare against this.panel to drop results for a panel that closed
+		this.panel = panel;
+		// a typed character seeds the search; without a search row there is
+		// nowhere to see or clear it, so it is dropped
+		this.query = this.opts.hide_search ? "" : query;
+		this.stale = false;
+		this.pending_activate = false;
 
 		if (!this.opts.hide_search) {
 			const search = document.createElement("div");
 			search.className = "es-combobox__search";
-			search.insertAdjacentHTML("beforeend", icon_html("search", ""));
+			search.insertAdjacentHTML("beforeend", icon_html("search", "", COMPONENT));
 			this.input = document.createElement("input");
 			this.input.className = "es-combobox__input";
 			this.input.type = "text";
@@ -419,18 +485,12 @@ frappe.ui.Combobox = class Combobox {
 			this.input.setAttribute("autocomplete", "off");
 			this.input.setAttribute("spellcheck", "false");
 			this.input.placeholder = this.opts.search_placeholder || __("Search...");
-			this.input.value = query;
+			this.input.value = this.query;
 			this.spinner = document.createElement("span");
 			this.spinner.className = "es-spinner";
 			this.spinner.setAttribute("aria-hidden", "true");
 			this.spinner.hidden = true;
 			search.append(this.input, this.spinner);
-			if (this.opts.escape_hint) {
-				const hint = document.createElement("kbd");
-				hint.className = "es-combobox__hint";
-				hint.textContent = "esc";
-				search.appendChild(hint);
-			}
 			panel.appendChild(search);
 			this.input.addEventListener("input", () => this.on_query(this.input.value));
 		} else {
@@ -439,6 +499,7 @@ frappe.ui.Combobox = class Combobox {
 
 		this.list_el = document.createElement("div");
 		this.list_el.className = "es-combobox__list";
+		this.list_el.addEventListener("scroll", () => this.maybe_load_more(), { passive: true });
 		panel.appendChild(this.list_el);
 
 		// the filters the list is restricted by sit under the list, above
@@ -455,9 +516,9 @@ frappe.ui.Combobox = class Combobox {
 		this.footer_el.hidden = true;
 		panel.appendChild(this.footer_el);
 
+		// into <body> (no overflow: hidden ancestor can clip it), same as menus
+		// and popovers; z-index puts it above dialogs
 		document.body.appendChild(panel);
-		this.panel = panel;
-		this.query = query;
 		this.trigger_el.setAttribute("aria-expanded", "true");
 		this.trigger_el.setAttribute("aria-controls", panel.id);
 		this.trigger_el.setAttribute("data-state", "open");
@@ -507,6 +568,12 @@ frappe.ui.Combobox = class Combobox {
 		const panel = this.panel;
 		this.panel = null;
 		this.rows = [];
+		this.highlighted = null;
+		this.group_els = [];
+		this.more_el = null;
+		this.has_more = false;
+		this.loading_more = null;
+		this.source_rows = null;
 		clearTimeout(this.debounce_timer);
 
 		panel.removeEventListener("keydown", this.onpanelkeydown);
@@ -521,7 +588,7 @@ frappe.ui.Combobox = class Combobox {
 		// keyboard closes return focus to the trigger; a click elsewhere
 		// already moved focus and shouldn't have it stolen back
 		if (reason === "escape" || reason === "tab" || reason === "select") {
-			this.trigger_el.focus({ preventScroll: true });
+			this.focus_el.focus({ preventScroll: true });
 		}
 
 		panel.setAttribute("data-state", "closed");
@@ -546,10 +613,16 @@ frappe.ui.Combobox = class Combobox {
 
 	on_query(query) {
 		this.query = query;
-		if (typeof this.options === "function") {
-			// server-backed: debounce, then refetch for the new query
+		if (typeof this.options === "function" && !this.filterable) {
+			// server-backed: debounce, then refetch. Until the new rows land
+			// the old ones are stale — Enter must not commit one of them
+			this.stale = true;
+			this.highlight(null);
 			clearTimeout(this.debounce_timer);
 			this.debounce_timer = setTimeout(() => this.load(), DEBOUNCE_MS);
+		} else if (typeof this.options === "function") {
+			// a preloaded source: cheap, so refilter right away
+			this.load();
 		} else {
 			this.render();
 		}
@@ -572,21 +645,155 @@ frappe.ui.Combobox = class Combobox {
 		if (is_thenable(value)) {
 			this.set_loading(true);
 			value.then(
-				(rows) => {
+				(result) => {
 					if (request_id !== this.request_id || !this.panel) return;
 					this.set_loading(false);
-					this.render(normalize_options(rows));
+					this.set_rows(result);
 				},
 				(error) => {
 					if (request_id !== this.request_id || !this.panel) return;
 					console.error(error);
 					this.set_loading(false);
-					this.render(normalize_options([]), __("Could not load options"));
+					this.set_rows([]);
+					this.render(__("Could not load options"));
 				}
 			);
 			return;
 		}
-		this.render(normalize_options(value));
+		this.set_rows(value);
+	}
+
+	// first page of rows for the current query
+	set_rows(result) {
+		const { rows, has_more } = unpack(result);
+		// a preloaded source hands back the same array on every keystroke:
+		// the normalized form is still good, only the filter changed
+		if (rows !== this.source_rows) {
+			this.source_rows = rows;
+			this.normalized = normalize_options(rows);
+		}
+		this.next_start = this.opts.page_size || 0;
+		this.has_more = this.page_allows_more(rows, has_more);
+		// a page load for the previous rows is void now
+		this.loading_more = null;
+		this.render();
+	}
+
+	page_allows_more(rows, has_more) {
+		const page_size = this.opts.page_size;
+		if (!page_size || typeof this.options !== "function") return false;
+		return has_more == null ? rows.length >= page_size : !!has_more;
+	}
+
+	// fetch the next page once the list is scrolled near its end; also right
+	// after the "Loading more" row appears when the list isn't tall enough to
+	// scroll at all
+	maybe_load_more() {
+		if (!this.has_more || !this.list_el) return;
+		const list = this.list_el;
+		const remaining = list.scrollHeight - list.scrollTop - list.clientHeight;
+		if (remaining < LOAD_MORE_THRESHOLD) this.load_more();
+	}
+
+	// the next page for the current query, appended under the rows on screen
+	load_more() {
+		if (!this.panel || !this.has_more || this.loading_more) return;
+		// one token per page request: a response for an earlier query, an
+		// earlier open, or an earlier page is dropped
+		const token = { request_id: this.request_id, query: this.query };
+		this.loading_more = token;
+		let value;
+		try {
+			value = this.options(this.query, { start: this.next_start });
+		} catch (error) {
+			console.error(error);
+			value = [];
+		}
+		const current = () =>
+			this.panel && this.loading_more === token && token.request_id === this.request_id;
+		Promise.resolve(value).then(
+			(result) => {
+				if (!current()) return;
+				this.loading_more = null;
+				const { rows, has_more } = unpack(result);
+				const extra = normalize_options(rows);
+				const added = merge_normalized(this.normalized, extra);
+				this.source_rows = null;
+				this.next_start += this.opts.page_size;
+				// a page that adds nothing (a source ignoring `start`, a
+				// translated doctype that returns everything at once) ends it
+				this.has_more = added > 0 && this.page_allows_more(rows, has_more);
+				this.append_rows(extra);
+			},
+			(error) => {
+				if (!current()) return;
+				this.loading_more = null;
+				console.error(error);
+				this.has_more = false;
+				this.update_more_row();
+			}
+		);
+	}
+
+	// put a later page's rows on screen without rebuilding what's there (the
+	// user's scroll position and highlight stay put)
+	append_rows(extra) {
+		const seen = new Set(this.rows.map((r) => r.option && r.option.value));
+		for (const group of extra.groups) {
+			const options = group.options.filter((o) => !seen.has(o.value));
+			if (!options.length) continue;
+			options.forEach((o) => seen.add(o.value));
+			let group_el = this.group_els[this.group_els.length - 1];
+			if (!group_el || group.group || group_el.dataset.group) {
+				group_el = this.make_group_el({ ...group, options });
+				this.list_el.appendChild(group_el);
+			}
+			const reserve = group_el.dataset.reserve === "1" || needs_icon_space(options);
+			for (const option of options) {
+				group_el.appendChild(this.add_row({ option }, { reserve, query: this.query }));
+			}
+		}
+		this.update_more_row();
+	}
+
+	make_group_el(group) {
+		const group_el = document.createElement("div");
+		group_el.className = "es-menu__group";
+		group_el.setAttribute("role", "group");
+		if (group.group) group_el.dataset.group = group.group;
+		// when any row has an icon, iconless rows reserve the same space so
+		// the labels line up (also for rows appended later)
+		if (needs_icon_space(group.options)) group_el.dataset.reserve = "1";
+		if (group.group && !group.hide_label) {
+			const label = document.createElement("div");
+			label.className = "es-menu__group-label";
+			label.id = `${this.id}-g${this.group_els.length}`;
+			label.textContent = group.group;
+			group_el.setAttribute("aria-labelledby", label.id);
+			group_el.appendChild(label);
+		}
+		this.group_els.push(group_el);
+		return group_el;
+	}
+
+	// the "Loading more" row at the end of the list, present while there are
+	// more pages; maybe_load_more() fetches when the list scrolls near it
+	update_more_row() {
+		if (!this.list_el) return;
+		if (this.more_el) {
+			this.more_el.remove();
+			this.more_el = null;
+		}
+		if (!this.has_more || !this.rows.some((r) => r.option)) return;
+		const more = document.createElement("div");
+		more.className = "es-menu__loading";
+		more.setAttribute("aria-hidden", "true");
+		const spinner = document.createElement("span");
+		spinner.className = "es-spinner";
+		more.append(spinner, document.createTextNode(__("Loading more...")));
+		this.list_el.appendChild(more);
+		this.more_el = more;
+		this.maybe_load_more();
 	}
 
 	set_loading(loading) {
@@ -595,22 +802,15 @@ frappe.ui.Combobox = class Combobox {
 		if (this.spinner) this.spinner.hidden = !loading;
 		if (loading && !this.rows.length) {
 			// first load: skeleton rows instead of an empty panel
-			this.list_el.replaceChildren();
-			const group = document.createElement("div");
-			group.className = "es-menu__group";
-			for (const width of ["55%", "70%", "45%"]) {
-				const row = document.createElement("div");
-				row.className = "es-combobox__skeleton";
-				const dot = document.createElement("span");
-				dot.className = "es-skeleton size-6 rounded-full";
-				const bar = document.createElement("span");
-				bar.className = "es-skeleton";
-				bar.style.height = "12px";
-				bar.style.width = width;
-				row.append(dot, bar);
-				group.appendChild(row);
-			}
-			this.list_el.appendChild(group);
+			const rows = ["55%", "70%", "45%"]
+				.map(
+					(width) =>
+						`<div class="es-combobox__skeleton">${frappe.ui.skeleton.html({
+							css_class: "size-6 rounded-full",
+						})}${frappe.ui.skeleton.html({ width, height: "12px" })}</div>`
+				)
+				.join("");
+			this.list_el.innerHTML = `<div class="es-menu__group">${rows}</div>`;
 		}
 	}
 
@@ -618,12 +818,26 @@ frappe.ui.Combobox = class Combobox {
 	// text) under the list, so it's clear why a record isn't showing up
 	render_filters() {
 		if (!this.filters_el) return;
-		const filters = this.opts.filters;
+		let filters = this.opts.filters;
+		if (typeof filters === "function") filters = filters(this);
+		if (is_thenable(filters)) {
+			const panel = this.panel;
+			filters.then((value) => {
+				if (this.panel !== panel) return;
+				this.render_filters_value(value);
+				this.reposition();
+			});
+			return;
+		}
+		this.render_filters_value(filters);
+	}
+
+	render_filters_value(filters) {
 		const items = Array.isArray(filters) ? filters.filter(Boolean) : filters ? [filters] : [];
 		this.filters_el.replaceChildren();
 		this.filters_el.hidden = !items.length;
 		if (!items.length) return;
-		this.filters_el.insertAdjacentHTML("beforeend", icon_html("list-filter", ""));
+		this.filters_el.insertAdjacentHTML("beforeend", icon_html("list-filter", "", COMPONENT));
 		const label = document.createElement("span");
 		label.className = "es-combobox__filters-label";
 		label.textContent = __("Filtered by");
@@ -656,7 +870,7 @@ frappe.ui.Combobox = class Combobox {
 			more.on("click", (e) => {
 				e.stopPropagation();
 				this.filters_expanded = true;
-				this.render_filters();
+				this.render_filters_value(items);
 				this.reposition();
 			});
 			// keep focus in the search input
@@ -668,46 +882,33 @@ frappe.ui.Combobox = class Combobox {
 	/** Replace the filter chips (e.g. after a dependent field changed). */
 	set_filters(filters) {
 		this.opts.filters = filters;
+		this.filters_expanded = false;
+		if (!this.is_open) return;
 		this.render_filters();
-		if (this.is_open) this.reposition();
+		this.reposition();
 	}
 
-	// (re)draw the list and footer from the normalized rows, applying the
+	// (re)draw the list and footer from the resolved rows, applying the
 	// client filter when enabled
-	render(normalized, empty_text) {
+	render(empty_text) {
 		if (!this.panel) return;
-		if (normalized) this.last_groups = normalized.groups;
-		const groups = this.last_groups || [];
-		const custom = [
-			...(normalized ? normalized.custom : this.last_custom || []),
-			...(this.opts.footer || []),
-		];
-		if (normalized) this.last_custom = normalized.custom;
+		const { groups, custom } = this.normalized || { groups: [], custom: [] };
 		const query = this.query;
 		const filter = this.filterable ? (option) => matches(option, query) : () => true;
 
 		this.rows = [];
+		this.highlighted = null;
+		this.group_els = [];
+		this.more_el = null;
 		this.list_el.replaceChildren();
 		let visible = 0;
 		for (const group of groups) {
 			const options = group.options.filter(filter);
 			if (!options.length) continue;
-			const group_el = document.createElement("div");
-			group_el.className = "es-menu__group";
-			group_el.setAttribute("role", "group");
-			if (group.group && !group.hide_label) {
-				const label = document.createElement("div");
-				label.className = "es-menu__group-label";
-				label.id = `${this.id}-g${visible}`;
-				label.textContent = group.group;
-				group_el.setAttribute("aria-labelledby", label.id);
-				group_el.appendChild(label);
-			}
-			const reserve = options.some((o) => o.icon || o.image || o.avatar);
+			const group_el = this.make_group_el({ ...group, options });
+			const reserve = group_el.dataset.reserve === "1";
 			for (const option of options) {
-				const el = this.build_row(option, { reserve, query });
-				this.rows.push({ el, option });
-				group_el.appendChild(el);
+				group_el.appendChild(this.add_row({ option }, { reserve, query }));
 			}
 			this.list_el.appendChild(group_el);
 			visible += options.length;
@@ -715,9 +916,7 @@ frappe.ui.Combobox = class Combobox {
 		if (!visible) {
 			const empty = document.createElement("div");
 			empty.className = "es-menu__empty";
-			const has_filters = Array.isArray(this.opts.filters)
-				? this.opts.filters.length > 0
-				: !!this.opts.filters;
+			const has_filters = this.filters_el && !this.filters_el.hidden;
 			empty.textContent =
 				empty_text ||
 				(query && has_filters
@@ -730,11 +929,11 @@ frappe.ui.Combobox = class Combobox {
 
 		// custom rows: shown when their condition allows (default: always)
 		this.footer_el.replaceChildren();
-		const shown = custom.filter((row) => (row.condition ? row.condition({ query }) : true));
+		const shown = [...custom, ...(this.opts.footer || [])].filter((row) =>
+			row.condition ? row.condition({ query }) : true
+		);
 		for (const row of shown) {
-			const el = this.build_row({ label: row.label, icon: row.icon }, { custom: row });
-			this.rows.push({ el, option: null, custom: row });
-			this.footer_el.appendChild(el);
+			this.footer_el.appendChild(this.add_row({ custom: row }, { query }));
 		}
 		this.footer_el.hidden = !shown.length;
 
@@ -743,10 +942,22 @@ frappe.ui.Combobox = class Combobox {
 		// creates)
 		const current = this.rows.find((r) => r.option && r.option.value === this.value);
 		this.highlight(current || this.rows.find((r) => !(r.option && r.option.disabled)) || null);
+		this.stale = false;
 		this.reposition();
+		this.update_more_row();
+
+		// Enter arrived while these rows were still loading (a scanner, a
+		// fast typist): commit now, but only a real option, never a custom
+		// row like "Create new" the user didn't see
+		if (this.pending_activate) {
+			this.pending_activate = false;
+			if (this.highlighted && this.highlighted.option) this.activate(this.highlighted);
+		}
 	}
 
-	build_row(option, { reserve, query, custom } = {}) {
+	// build one row element and register it in this.rows
+	add_row(row, { reserve, query } = {}) {
+		const option = row.option || { label: row.custom.label, icon: row.custom.icon };
 		const el = document.createElement("button");
 		el.type = "button";
 		el.className = "es-menu__item";
@@ -758,7 +969,7 @@ frappe.ui.Combobox = class Combobox {
 			el.setAttribute("aria-disabled", "true");
 			el.disabled = true;
 		}
-		const selected = !custom && option.value === this.value;
+		const selected = !!row.option && option.value === this.value;
 		el.setAttribute("aria-selected", selected ? "true" : "false");
 
 		const prefix = prefix_html(option, "sm");
@@ -772,10 +983,24 @@ frappe.ui.Combobox = class Combobox {
 		}
 
 		// title on top, name / search fields underneath — the same two lines
-		// the classic Link dropdown shows, since a docname can be long
+		// the classic Link dropdown shows, since a docname can be long. The
+		// badge rides on the title line, right after the text, so it lines up
+		// with its neighbours whether or not the row is the selected one.
 		const label = document.createElement("span");
 		label.className = "es-menu__label";
-		fill_label(label, option.label || "", custom ? "" : query);
+		fill_label(label, option.label || "", row.custom ? "" : query);
+		if (option.badge && option.badge.label) {
+			const theme = validated(option.badge.theme, BADGE_THEMES, "badge.theme", COMPONENT);
+			label.insertAdjacentHTML(
+				"beforeend",
+				frappe.ui.badge.html({
+					label: option.badge.label,
+					theme: theme || "gray",
+					size: "sm",
+					css_class: "es-combobox__badge",
+				})
+			);
+		}
 		if (option.description) {
 			const description = document.createElement("span");
 			description.className = "es-menu__description";
@@ -783,32 +1008,29 @@ frappe.ui.Combobox = class Combobox {
 			label.appendChild(description);
 		}
 		el.appendChild(label);
-		if (option.badge && option.badge.label) {
-			const theme = validated(option.badge.theme, BADGE_THEMES, "badge.theme", "Combobox");
+		if (selected) {
 			el.insertAdjacentHTML(
 				"beforeend",
-				frappe.ui.badge.html({
-					label: option.badge.label,
-					theme: theme || "gray",
-					size: "sm",
-				})
+				icon_html("check", "es-combobox__check", COMPONENT)
 			);
 		}
-		if (selected) el.insertAdjacentHTML("beforeend", icon_html("check", "es-combobox__check"));
 
 		// pointer: hovering highlights, clicking picks. mousedown would blur
 		// the search input before click fires, so keep focus where it is
 		el.addEventListener("pointerdown", (e) => e.preventDefault());
-		el.addEventListener("pointermove", () =>
-			this.highlight(this.rows.find((r) => r.el === el))
-		);
-		el.addEventListener("click", () => this.activate(this.rows.find((r) => r.el === el)));
+		el.addEventListener("pointermove", () => this.highlight(row, { scroll: false }));
+		el.addEventListener("click", () => this.activate(row));
+
+		row.el = el;
+		this.rows.push(row);
 		return el;
 	}
 
-	highlight(row) {
-		for (const r of this.rows) r.el.removeAttribute("data-highlighted");
-		this.highlighted = row || null;
+	highlight(row, { scroll = true } = {}) {
+		row = row || null;
+		if (row === this.highlighted) return;
+		if (this.highlighted) this.highlighted.el.removeAttribute("data-highlighted");
+		this.highlighted = row;
 		const owner = this.input || this.panel;
 		if (!row) {
 			owner && owner.removeAttribute("aria-activedescendant");
@@ -816,7 +1038,8 @@ frappe.ui.Combobox = class Combobox {
 		}
 		row.el.setAttribute("data-highlighted", "");
 		owner && owner.setAttribute("aria-activedescendant", row.el.id);
-		row.el.scrollIntoView({ block: "nearest" });
+		// the pointer path never needs this: a hovered row is on screen
+		if (scroll) row.el.scrollIntoView({ block: "nearest" });
 	}
 
 	step(direction, edge) {
@@ -893,16 +1116,25 @@ frappe.ui.Combobox = class Combobox {
 				break;
 			case "Enter":
 				handled();
-				this.activate(this.highlighted);
+				// rows for the current query haven't arrived yet: hold the
+				// Enter and commit when they do (see render)
+				if (this.stale) this.pending_activate = true;
+				else this.activate(this.highlighted);
 				break;
 			case "Escape":
 				handled();
 				this.close("escape");
 				break;
 			case "Tab":
-				// don't trap focus: close, put focus back on the trigger and
-				// let the browser's own Tab continue from there
-				this.close("tab");
+				// don't trap focus: close and let the browser's own Tab move on
+				// from the trigger. Typed text plus Tab picks the highlighted
+				// match, the way the classic dropdown's tab-select did, so
+				// tab-through data entry keeps working
+				if (this.query && !this.stale && this.highlighted && this.highlighted.option) {
+					this.select(this.highlighted.option);
+				} else {
+					this.close("tab");
+				}
 				break;
 			default:
 				if (!this.input && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -933,14 +1165,6 @@ frappe.ui.Combobox = class Combobox {
 		}
 	}
 };
-
-function find_in(groups, value) {
-	for (const group of groups) {
-		const hit = group.options.find((o) => o.value === value);
-		if (hit) return hit;
-	}
-	return null;
-}
 
 /**
  * Convenience form: makes the trigger and wires the combobox in one call.

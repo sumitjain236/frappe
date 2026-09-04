@@ -203,6 +203,31 @@ frappe.pages["component-explorer"].on_page_load = function (wrapper) {
 					],
 				},
 				{
+					title: __("Load more on scroll (page_size)"),
+					items: [
+						{
+							placeholder: "Select item",
+							search_placeholder: "Search 143 items...",
+							filterable: false,
+							page_size: 20,
+							options: (query, { start }) =>
+								new Promise((resolve) =>
+									setTimeout(() => {
+										const all = Array.from({ length: 143 }, (_, i) => ({
+											label: `Item ${String(i + 1).padStart(3, "0")}`,
+											value: `ITEM-${String(i + 1).padStart(3, "0")}`,
+											description: i % 3 ? "Accessories" : "Electronics",
+										}));
+										const hits = all.filter((o) =>
+											o.label.toLowerCase().includes(query.toLowerCase())
+										);
+										resolve(hits.slice(start, start + 20));
+									}, 400)
+								),
+						},
+					],
+				},
+				{
 					title: __("Async options (server search)"),
 					items: [
 						{
