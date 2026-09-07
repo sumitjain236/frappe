@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "id": "gst-tax-invoice-a4",
+  "title": "GST Tax Invoice (A4)",
+  "category": "Print Format",
+  "app": "erpnext",
+  "version": "1.8.2",
+  "description": "Compliant tax invoice with HSN summary, e-invoice QR and bank details, with a matching letter head.",
+  "tags": ["gst", "invoice", "print"],
+  "license": "GPL-3.0",
+  "requires": [{ "app": "erpnext", "min_version": "15.0.0" }],
+  "steps": [
+    { "sequence": 1, "type": "file", "path": "files/letterhead.png", "file_name": "gst-letterhead.png", "is_private": false },
+    { "sequence": 2, "type": "document", "path": "documents/01-letter-head.json",
+      "link_rules": { "image": { "resolver": "file", "sequence": 1 } } },
+    { "sequence": 3, "type": "document", "path": "documents/02-print-format.json", "on_conflict": "copy" },
+    { "sequence": 4, "type": "file", "path": "files/print-notes.md", "is_private": true,
+      "attach_to": { "resolver": "step", "sequence": 3 } }
+  ],
+  "updated": "2026-07-02"
+}

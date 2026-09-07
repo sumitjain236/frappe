@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "id": "gstr-3b-summary",
+  "title": "GSTR-3B Summary Report",
+  "category": "Report",
+  "app": "erpnext",
+  "version": "1.3.0",
+  "description": "Monthly GSTR-3B liability with ITC breakup, e-commerce split and a reconcile-with-2B column.",
+  "tags": ["gst", "gstr-3b", "returns"],
+  "license": "GPL-3.0",
+  "links": { "documentation": "https://docs.example.com/gstr-3b", "support": "https://github.com/frappe/shelf-gst/issues" },
+  "requires": [
+    { "app": "erpnext", "min_version": "15.0.0" },
+    { "app": "india_compliance", "min_version": "15.0.0" }
+  ],
+  "inputs": [
+    { "key": "company", "label": "Company", "fieldtype": "Link", "options": "Company", "mandatory": true,
+      "description": "Reports and cards are filtered to this company." }
+  ],
+  "steps": [
+    { "sequence": 1, "type": "document", "path": "documents/01-report.json" },
+    { "sequence": 2, "type": "document", "path": "documents/02-dashboard-chart.json",
+      "link_rules": {
+        "report_name": { "resolver": "step", "sequence": 1, "field": "name" },
+        "company": { "resolver": "prompt", "prompt_key": "company" }
+      } },
+    { "sequence": 3, "type": "document", "path": "documents/03-number-card.json",
+      "link_rules": { "report_name": { "resolver": "step", "sequence": 1, "field": "name" } } }
+  ],
+  "updated": "2026-08-12"
+}

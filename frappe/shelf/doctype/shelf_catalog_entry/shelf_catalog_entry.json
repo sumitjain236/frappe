@@ -1,0 +1,191 @@
+{
+ "doctype": "DocType",
+ "name": "Shelf Catalog Entry",
+ "module": "Shelf",
+ "engine": "InnoDB",
+ "autoname": "format:{source}--{artifact_id}",
+ "naming_rule": "Expression",
+ "read_only": 1,
+ "in_create": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "title",
+ "description": "One artifact from a source's index.json. Refreshed on sync; never edited by hand.",
+ "fields": [
+  {
+   "fieldname": "source",
+   "fieldtype": "Link",
+   "label": "Source",
+   "options": "Shelf Source",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "artifact_id",
+   "fieldtype": "Data",
+   "label": "Artifact ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Data",
+   "label": "Category",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "app",
+   "fieldtype": "Data",
+   "label": "App",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "install_mode",
+   "fieldtype": "Data",
+   "label": "Install Mode"
+  },
+  {
+   "fieldname": "license",
+   "fieldtype": "Data",
+   "label": "License"
+  },
+  {
+   "fieldname": "section_b",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Small Text",
+   "label": "Tags (JSON)"
+  },
+  {
+   "fieldname": "requires",
+   "fieldtype": "Small Text",
+   "label": "Requires (JSON)"
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inputs_count",
+   "fieldtype": "Int",
+   "label": "Inputs"
+  },
+  {
+   "fieldname": "documents_count",
+   "fieldtype": "Int",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "files_count",
+   "fieldtype": "Int",
+   "label": "Files"
+  },
+  {
+   "fieldname": "has_readme",
+   "fieldtype": "Check",
+   "label": "Has README"
+  },
+  {
+   "fieldname": "has_preview",
+   "fieldtype": "Check",
+   "label": "Has Preview"
+  },
+  {
+   "fieldname": "section_c",
+   "fieldtype": "Section Break",
+   "label": "Package"
+  },
+  {
+   "fieldname": "package_hash",
+   "fieldtype": "Data",
+   "label": "Package Hash",
+   "length": 64
+  },
+  {
+   "fieldname": "path",
+   "fieldtype": "Data",
+   "label": "Path in Repository"
+  },
+  {
+   "fieldname": "column_break_c",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "updated",
+   "fieldtype": "Date",
+   "label": "Updated"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "share": 1
+  }
+ ],
+ "creation": "2026-09-06 10:00:00.000000",
+ "modified": "2026-09-06 10:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "docstatus": 0,
+ "idx": 0,
+ "field_order": [
+  "source",
+  "artifact_id",
+  "title",
+  "category",
+  "column_break_a",
+  "app",
+  "version",
+  "install_mode",
+  "license",
+  "section_b",
+  "description",
+  "tags",
+  "requires",
+  "column_break_b",
+  "inputs_count",
+  "documents_count",
+  "files_count",
+  "has_readme",
+  "has_preview",
+  "section_c",
+  "package_hash",
+  "path",
+  "column_break_c",
+  "updated"
+ ]
+}

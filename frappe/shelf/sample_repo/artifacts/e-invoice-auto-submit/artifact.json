@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "e-invoice-auto-submit",
+  "title": "E-Invoice Auto-Submit",
+  "category": "Server Script",
+  "app": "india_compliance",
+  "version": "1.0.2",
+  "description": "Generates the IRN on submit for B2B invoices and blocks submit when the portal is down.",
+  "tags": ["gst", "e-invoice", "automation"],
+  "license": "GPL-3.0",
+  "requires": [{ "app": "india_compliance", "min_version": "15.0.0" }],
+  "steps": [
+    { "sequence": 1, "type": "document", "path": "documents/01-server-script.json", "on_conflict": "replace" }
+  ],
+  "updated": "2026-08-22"
+}

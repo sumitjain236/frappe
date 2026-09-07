@@ -1,0 +1,31 @@
+name: shelf-index
+
+on:
+  push:
+    branches: [main]
+    paths: ["artifacts/**", "shelf.json", "scripts/build_index.py"]
+  pull_request:
+    paths: ["artifacts/**", "shelf.json"]
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate artifacts and build index.json
+        run: python scripts/build_index.py .
+      - name: Commit index.json
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "shelf-bot"
+          git config user.email "shelf-bot@users.noreply.github.com"
+          git add index.json
+          git diff --cached --quiet || git commit -m "chore: rebuild index.json"
+          git push

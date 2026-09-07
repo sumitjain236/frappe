@@ -1,0 +1,16 @@
+{
+  "doctype": "Report",
+  "name": "GSTR-3B Summary (Shelf)",
+  "report_name": "GSTR-3B Summary (Shelf)",
+  "ref_doctype": "Sales Invoice",
+  "report_type": "Query Report",
+  "is_standard": "No",
+  "disabled": 0,
+  "query": "select company_gstin as \"GSTIN:Data:180\", sum(base_net_total) as \"Taxable Value:Currency:140\", sum(total_taxes_and_charges) as \"Tax:Currency:120\" from `tabSales Invoice` where docstatus = 1 and company = %(company)s and posting_date between %(from_date)s and %(to_date)s group by company_gstin",
+  "filters": [
+    { "fieldname": "company", "label": "Company", "fieldtype": "Link", "options": "Company", "mandatory": 1 },
+    { "fieldname": "from_date", "label": "From Date", "fieldtype": "Date", "mandatory": 1 },
+    { "fieldname": "to_date", "label": "To Date", "fieldtype": "Date", "mandatory": 1 }
+  ],
+  "roles": [{ "role": "Accounts User" }, { "role": "Accounts Manager" }]
+}

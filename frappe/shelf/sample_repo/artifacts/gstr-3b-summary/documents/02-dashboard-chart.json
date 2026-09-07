@@ -1,0 +1,14 @@
+{
+  "doctype": "Dashboard Chart",
+  "name": "GST Liability Trend (Shelf)",
+  "chart_name": "GST Liability Trend (Shelf)",
+  "chart_type": "Report",
+  "report_name": null,
+  "company": null,
+  "type": "Line",
+  "timeseries": 1,
+  "use_report_chart": 0,
+  "x_field": "GSTIN",
+  "y_axis": [{ "y_field": "Tax", "color": "#0289F7" }],
+  "is_public": 1
+}

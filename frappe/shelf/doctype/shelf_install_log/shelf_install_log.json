@@ -1,0 +1,152 @@
+{
+ "doctype": "DocType",
+ "name": "Shelf Install Log",
+ "module": "Shelf",
+ "engine": "InnoDB",
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "title",
+ "description": "Audit of every install, update, and failure on this site. Keyed by (source, artifact_id); is_current marks the live install.",
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "SIL-.#####",
+   "default": "SIL-.#####",
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Link",
+   "label": "Source",
+   "options": "Shelf Source",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "artifact_id",
+   "fieldtype": "Data",
+   "label": "Artifact ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "package_hash",
+   "fieldtype": "Data",
+   "label": "Package Hash",
+   "length": 64
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nInstalled\nFailed\nPartially Installed\nUninstalled",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "is_current",
+   "fieldtype": "Check",
+   "label": "Is Current",
+   "description": "The install this site is running now for this artifact."
+  },
+  {
+   "fieldname": "section_b",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "inputs",
+   "fieldtype": "Code",
+   "label": "Inputs (JSON)",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "step_log",
+   "fieldtype": "Code",
+   "label": "Step Log (JSON)",
+   "options": "JSON",
+   "description": "Per step: source document name, target document name, and the action taken."
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "installed_by",
+   "fieldtype": "Link",
+   "label": "Installed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "installed_on",
+   "fieldtype": "Datetime",
+   "label": "Installed On"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "share": 1
+  }
+ ],
+ "creation": "2026-09-06 10:00:00.000000",
+ "modified": "2026-09-06 10:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "docstatus": 0,
+ "idx": 0,
+ "field_order": [
+  "naming_series",
+  "source",
+  "artifact_id",
+  "title",
+  "column_break_a",
+  "version",
+  "package_hash",
+  "status",
+  "is_current",
+  "section_b",
+  "inputs",
+  "step_log",
+  "error",
+  "column_break_b",
+  "installed_by",
+  "installed_on"
+ ]
+}

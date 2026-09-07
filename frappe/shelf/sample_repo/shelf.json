@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "id": "frappe-gst",
+  "name": "GST & Compliance",
+  "domain": "GST & Compliance",
+  "description": "Reports, print formats, dashboards and scripts for Indian GST filing on ERPNext.",
+  "license": "GPL-3.0",
+  "publisher": { "name": "Frappe", "url": "https://frappe.io" }
+}

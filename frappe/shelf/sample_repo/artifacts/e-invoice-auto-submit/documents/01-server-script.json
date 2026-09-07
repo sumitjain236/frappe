@@ -1,0 +1,9 @@
+{
+  "doctype": "Server Script",
+  "name": "E-Invoice Auto-Submit (Shelf)",
+  "script_type": "DocType Event",
+  "reference_doctype": "Sales Invoice",
+  "doctype_event": "Before Submit",
+  "disabled": 0,
+  "script": "if doc.customer_gstin and not doc.irn:\n    frappe.call('india_compliance.gst_india.utils.e_invoice.generate_e_invoice', docname=doc.name, throw=True)"
+}

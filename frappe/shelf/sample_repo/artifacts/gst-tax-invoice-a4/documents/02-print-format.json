@@ -1,0 +1,14 @@
+{
+  "doctype": "Print Format",
+  "name": "GST Tax Invoice A4 (Shelf)",
+  "doc_type": "Sales Invoice",
+  "module": "Accounts",
+  "standard": "No",
+  "custom_format": 1,
+  "print_format_builder_beta": 0,
+  "print_format_type": "Jinja",
+  "pdf_generator": "wkhtmltopdf",
+  "disabled": 0,
+  "html": "<div class=\"print-format\"><h2>TAX INVOICE</h2><p>{{ doc.company }} \u00b7 GSTIN {{ doc.company_gstin }}</p><table class=\"table table-bordered\"><thead><tr><th>Item</th><th>HSN</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>{% for item in doc.items %}<tr><td>{{ item.item_name }}</td><td>{{ item.gst_hsn_code }}</td><td>{{ item.qty }}</td><td>{{ item.get_formatted('rate') }}</td><td>{{ item.get_formatted('amount') }}</td></tr>{% endfor %}</tbody></table><p class=\"text-right\"><b>Grand Total: {{ doc.get_formatted('grand_total') }}</b></p></div>",
+  "css": ".print-format h2 { letter-spacing: 0.06em; }"
+}

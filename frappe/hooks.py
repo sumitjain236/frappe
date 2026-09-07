@@ -299,6 +299,7 @@ scheduler_events = {
 		"frappe.desk.utils.delete_old_exported_report_files",
 	],
 	"daily": [
+		"frappe.shelf.sync.sync_all_sources",
 		"frappe.desk.doctype.event.event.send_event_digest",
 		"frappe.email.doctype.notification.notification.trigger_daily_alerts",
 		"frappe.desk.form.document_follow.send_daily_updates",

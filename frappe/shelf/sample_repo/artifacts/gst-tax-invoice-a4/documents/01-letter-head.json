@@ -1,0 +1,12 @@
+{
+  "doctype": "Letter Head",
+  "name": "GST Letter Head (Shelf)",
+  "letter_head_name": "GST Letter Head (Shelf)",
+  "source": "Image",
+  "image": null,
+  "image_height": 40,
+  "image_width": 120,
+  "align": "Left",
+  "is_default": 0,
+  "disabled": 0
+}

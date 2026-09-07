@@ -1,0 +1,203 @@
+{
+ "doctype": "DocType",
+ "name": "Shelf Source",
+ "module": "Shelf",
+ "custom": 0,
+ "engine": "InnoDB",
+ "autoname": "field:title",
+ "naming_rule": "By fieldname",
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "description": "A git repository this site reads Shelf artifacts from. One source = one domain tab in the Shelf UI.",
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Shown as the domain tab. Defaults to the repository's shelf name after the first check."
+  },
+  {
+   "fieldname": "repo_url",
+   "fieldtype": "Data",
+   "label": "Repository URL",
+   "reqd": 1,
+   "description": "GitHub: https://github.com/owner/repo, owner/repo, or a /tree/branch link. Local Folder: an absolute path on this server."
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "default": "main"
+  },
+  {
+   "fieldname": "column_break_conn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Select",
+   "label": "Provider",
+   "options": "GitHub\nLocal Folder",
+   "default": "GitHub",
+   "reqd": 1
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Password",
+   "label": "Access Token",
+   "description": "Only needed for private repositories. Never sent to a public repository."
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1"
+  },
+  {
+   "fieldname": "section_status",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "fieldname": "connection_status",
+   "fieldtype": "Select",
+   "label": "Connection",
+   "options": "Not Checked\nConnected\nError",
+   "default": "Not Checked",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "access",
+   "fieldtype": "Select",
+   "label": "Access",
+   "options": "Unknown\nPublic\nPrivate",
+   "default": "Unknown",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "connection_message",
+   "fieldtype": "Small Text",
+   "label": "Last Check Result",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_checked",
+   "fieldtype": "Datetime",
+   "label": "Last Checked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_shelf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shelf_id",
+   "fieldtype": "Data",
+   "label": "Shelf ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shelf_name",
+   "fieldtype": "Data",
+   "label": "Shelf Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shelf_domain",
+   "fieldtype": "Data",
+   "label": "Domain",
+   "read_only": 1
+  },
+  {
+   "fieldname": "publisher_name",
+   "fieldtype": "Data",
+   "label": "Publisher",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_sync",
+   "fieldtype": "Section Break",
+   "label": "Sync"
+  },
+  {
+   "fieldname": "last_synced",
+   "fieldtype": "Datetime",
+   "label": "Last Synced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "artifact_count",
+   "fieldtype": "Int",
+   "label": "Artifacts",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_sync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "index_hash",
+   "fieldtype": "Data",
+   "label": "Index Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_error",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Error",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "report": 1,
+   "share": 1
+  }
+ ],
+ "creation": "2026-09-06 10:00:00.000000",
+ "modified": "2026-09-06 10:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "docstatus": 0,
+ "idx": 0,
+ "field_order": [
+  "title",
+  "repo_url",
+  "branch",
+  "column_break_conn",
+  "provider",
+  "token",
+  "enabled",
+  "section_status",
+  "connection_status",
+  "access",
+  "connection_message",
+  "last_checked",
+  "column_break_shelf",
+  "shelf_id",
+  "shelf_name",
+  "shelf_domain",
+  "publisher_name",
+  "section_sync",
+  "last_synced",
+  "artifact_count",
+  "column_break_sync",
+  "index_hash",
+  "last_sync_error"
+ ]
+}
