@@ -14,6 +14,7 @@ import "./frappe/ui/components/skeleton.js";
 import "./frappe/ui/components/divider.js";
 import "./frappe/ui/components/avatar.js";
 import "./frappe/ui/components/avatar_group.js";
+import "./frappe/ui/components/rating.js";
 import "./frappe/ui/components/alert.js";
 import "./frappe/ui/components/breadcrumbs.js";
 import "./frappe/ui/components/toast.js";

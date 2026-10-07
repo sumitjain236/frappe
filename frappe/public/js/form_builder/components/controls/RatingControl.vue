@@ -44,7 +44,7 @@ watch(
 </template>
 
 <style lang="scss" scoped>
-:deep(.rating) {
-	--star-fill: var(--yellow-300) !important;
+:deep(.rating [data-state]) {
+	--star-fill: var(--yellow-500) !important;
 }
 </style>

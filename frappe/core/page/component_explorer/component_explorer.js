@@ -2089,6 +2089,116 @@ frappe.pages["component-explorer"].on_page_load = function (wrapper) {
 				},
 			],
 		},
+		Rating: {
+			helper: "frappe.ui.rating",
+			// one rating per line, so sizes and states read as separate examples
+			stacked: true,
+			make: (opts) => $("<div>").append(opts.__html || frappe.ui.rating(opts)),
+			groups: [
+				{
+					title: __("Basic (click the current star again to clear)"),
+					items: [
+						{
+							value: 3,
+							on_change: (value) =>
+								frappe.ui.toast({ message: __("Rating: {0}", [value]) }),
+						},
+					],
+				},
+				{
+					title: __("Half stars"),
+					items: [{ value: 3.5, step: 0.5 }],
+				},
+				{
+					title: __("Sizes (md is the default)"),
+					items: ["sm", "md", "lg", "xl"].map((size) => ({
+						value: 3.5,
+						step: 0.5,
+						size,
+					})),
+				},
+				{
+					title: __("Number of stars"),
+					items: [
+						{ value: 2, max: 3 },
+						{ value: 7.5, max: 10, step: 0.5 },
+					],
+				},
+				{
+					title: __("Read-only, disabled and required"),
+					items: [
+						{ value: 3.5, step: 0.5, readonly: true },
+						{ value: 3, disabled: true },
+						{ value: 2, required: true },
+					],
+				},
+				{
+					title: __("Markup only, for list and grid cells"),
+					items: [
+						{
+							__code: 'frappe.ui.rating.html({ value: 3.5, size: "sm" })',
+							__html: frappe.ui.rating.html({ value: 3.5, size: "sm" }),
+						},
+					],
+				},
+				{
+					title: __("Same icon for every position"),
+					items: [{ value: 3, theme: "red", options: [{ icon: "heart" }] }],
+				},
+				{
+					title: __("Themes (yellow is the default)"),
+					items: ["yellow", "blue", "green", "violet"].map((theme) => ({
+						value: 3,
+						theme,
+					})),
+				},
+				{
+					title: __("Emoji with labels (only the chosen one stands out)"),
+					items: [
+						{
+							value: 4,
+							show_label: true,
+							options: [
+								{ icon: "😞", label: __("Not satisfied") },
+								{ icon: "😕", label: __("Could be better") },
+								{ icon: "😐", label: __("Okay") },
+								{ icon: "🙂", label: __("Good") },
+								{ icon: "😍", label: __("Loved it") },
+							],
+						},
+					],
+				},
+				{
+					title: __("Text options"),
+					items: [
+						{
+							value: 3,
+							show_label: true,
+							options: [
+								{ icon: "D", label: __("Needs work") },
+								{ icon: "C", label: __("Fair") },
+								{ icon: "B", label: __("Good") },
+								{ icon: "A", label: __("Great") },
+								{ icon: "A+", label: __("Outstanding") },
+							],
+						},
+					],
+				},
+				{
+					title: __("Line icons (fill: false keeps their inner lines)"),
+					items: [
+						{
+							value: 2,
+							fill: false,
+							options: [
+								{ icon: "thumbs-down", label: __("Not helpful") },
+								{ icon: "thumbs-up", label: __("Helpful") },
+							],
+						},
+					],
+				},
+			],
+		},
 		Skeleton: {
 			helper: "frappe.ui.skeleton",
 			html: (opts) => frappe.ui.skeleton.html(opts),
