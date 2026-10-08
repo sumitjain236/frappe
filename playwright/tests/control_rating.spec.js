@@ -45,4 +45,45 @@ test.describe("Control Rating", () => {
 
 		await expect(page.locator("div.rating").first().locator("> svg")).toHaveCount(7);
 	});
+
+	test("set the rating with the keyboard", async ({ page, desk }) => {
+		const dialog = await get_dialog_with_rating(desk);
+
+		const rating = page.locator(".modal:visible div.rating").first();
+		await rating.focus();
+		await page.keyboard.press("ArrowRight");
+		expect(await dialog.evaluate((d) => d.get_value("rate"))).toBe(0.5 / 7);
+		await page.keyboard.press("4");
+		expect(await dialog.evaluate((d) => d.get_value("rate"))).toBe(4 / 7);
+		await page.keyboard.press("End");
+		expect(await dialog.evaluate((d) => d.get_value("rate"))).toBe(1);
+		await expect(rating).toHaveAttribute("aria-valuenow", "7");
+		await dialog.evaluate((d) => d.hide());
+	});
+
+	test("a required rating can't be cleared by clicking it again", async ({ page, desk }) => {
+		const dialog = await desk.dialog({
+			title: "Rating",
+			fields: [{ fieldname: "rate", fieldtype: "Rating", reqd: 1 }],
+		});
+
+		const star = page.locator(".modal:visible div.rating > svg .right-half").nth(2);
+		await star.click();
+		expect(await dialog.evaluate((d) => d.get_value("rate"))).toBe(3 / 5);
+		await star.click();
+		expect(await dialog.evaluate((d) => d.get_value("rate"))).toBe(3 / 5);
+		await dialog.evaluate((d) => d.hide());
+	});
+
+	test("read-only stars keep one svg per star with filled halves marked", async ({ page }) => {
+		const markup = await page.evaluate(() => {
+			const el = $(frappe.format(0.7, { fieldtype: "Rating", options: 5 }))[0];
+			return {
+				stars: el.querySelectorAll(":scope > svg[data-rating]").length,
+				svgs: el.querySelectorAll("svg").length,
+				filled_halves: el.querySelectorAll(".star-click").length,
+			};
+		});
+		expect(markup).toEqual({ stars: 5, svgs: 5, filled_halves: 7 });
+	});
 });
