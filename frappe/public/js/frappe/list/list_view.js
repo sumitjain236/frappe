@@ -1514,7 +1514,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 			if (df.fieldtype === "Rating") {
 				let out_of_ratings = df.options || 5;
-				_value = _value * out_of_ratings;
+				_value = flt(value) * out_of_ratings;
 			}
 
 			let masked_fields = frappe.get_meta(this.doctype).masked_fields || [];
