@@ -1356,6 +1356,11 @@ frappe.views.KanbanV2Page = class KanbanV2Page {
 			row.appendChild(text);
 		}
 
+		if (df.fieldtype === "Rating") {
+			row.appendChild(this.rating_value(card, df));
+			return row;
+		}
+
 		const value = this.field_value(card, df);
 		if (value) {
 			row.appendChild(value);
@@ -1366,6 +1371,76 @@ frappe.views.KanbanV2Page = class KanbanV2Page {
 			row.appendChild(hint);
 		}
 		return row;
+	}
+
+	/** Stars even when unset, and rated in place when the user can edit the field. */
+	rating_value(card, df) {
+		const max = cint(df.options) || 5;
+		const editable = this.can_edit_card_field(card, df);
+		const rating = new frappe.ui.Rating({
+			value: flt(card[df.fieldname]) * max,
+			max,
+			step: 0.5,
+			label: this.field_label(df),
+			required: !!df.reqd,
+			readonly: !editable,
+			on_change: (stars) => this.save_card_rating(card, df, stars / max),
+		});
+		// rating a card must not select or open it
+		if (editable) rating.$el.on("click dblclick", (e) => e.stopPropagation());
+		return rating.el;
+	}
+
+	can_edit_card_field(card, df) {
+		if (!this.is_field_editable(df) || !frappe.model.can_write(this.doctype)) return false;
+		if (!frappe.perm.has_perm(this.doctype, df.permlevel || 0, "write")) return false;
+		const docstatus = cint(card.docstatus);
+		return docstatus === 0 || (docstatus === 1 && !!df.allow_on_submit);
+	}
+
+	/** One save at a time per card field; quick clicks only send the latest value. */
+	save_card_rating(card, df, value) {
+		const key = `${card.name}:${df.fieldname}`;
+		this._rating_saves = this._rating_saves || {};
+		const save = (this._rating_saves[key] = this._rating_saves[key] || {
+			saved: card[df.fieldname],
+		});
+		card[df.fieldname] = save.pending = value;
+		if (save.busy) return;
+
+		const send = () => {
+			const next = save.pending;
+			save.pending = undefined;
+			save.busy = true;
+			this.expect_own_update(card.name);
+			frappe
+				.xcall("frappe.client.set_value", {
+					doctype: this.doctype,
+					name: card.name,
+					fieldname: df.fieldname,
+					value: next,
+				})
+				.then(() => (save.saved = next))
+				// someone else may have saved this card meanwhile: show what the server has
+				.catch(() => {
+					save.pending = undefined;
+					this.board && this.board.refresh();
+				})
+				.finally(() => {
+					save.busy = false;
+					if (save.pending !== undefined && save.pending !== save.saved) send();
+					else delete this._rating_saves[key];
+				});
+		};
+		send();
+	}
+
+	/** Skip the reload our own save triggers, so the card doesn't jump to the top of a column sorted by modified. */
+	expect_own_update(name) {
+		const boards = this.board?.boards
+			? this.board.boards.map((entry) => entry.board)
+			: [this.board];
+		boards.forEach((board) => board?.engine?.expectOwnUpdates([name]));
 	}
 
 	field_label(df) {
