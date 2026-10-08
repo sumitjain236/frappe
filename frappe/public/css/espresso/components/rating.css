@@ -2,10 +2,11 @@
  *
  *   <div class="rating es-rating" role="radiogroup" data-interactive>
  *     <svg class="es-rating__item es-rating__icon" role="radio" data-rating="1">
- *       <use class="left-half star-click" data-state="filled"></use>
- *       <use class="right-half" data-state="empty"></use>
+ *       <path class="left-half star-click" data-state="filled"></path>
+ *       <path class="right-half" data-state="empty"></path>
  *     </svg>
  *   </div>
+ *   (other icons: two <use> clipped to each half instead of the paths)
  *
  * Root attributes:
  *   data-size="sm|lg|xl"     none = md
@@ -176,6 +177,11 @@
     overflow: visible;
 }
 
+/* halves count from the start side, so mirror the icon when it's on the right */
+[dir="rtl"] .es-rating__icon {
+    transform: scaleX(-1);
+}
+
 .es-rating .left-half,
 .es-rating .right-half {
     fill: var(--star-fill);
@@ -186,7 +192,8 @@
 }
 
 /* colour follows the old classes, so apps that toggle star-click still repaint */
-.es-rating .es-rating__icon > use {
+.es-rating .es-rating__icon > .left-half,
+.es-rating .es-rating__icon > .right-half {
     --star-fill: var(--es-rating-empty);
 }
 

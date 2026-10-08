@@ -135,13 +135,18 @@ function half_states(i, value, hover, spec) {
 	return [unit_state(i - 0.5, value, hover), unit_state(i, value, hover)];
 }
 
+// the old control's half-star paths: scripts click or select `path.left-half` on the default star
+const STAR_HALVES = {
+	left: "M11.9987 3.00011C11.8207 3.00011 11.6428 3.09261 11.5509 3.27762L9.15562 8.09836C9.08253 8.24546 8.94185 8.34728 8.77927 8.37075L3.42887 9.14298C3.01771 9.20233 2.85405 9.70811 3.1525 9.99707L7.01978 13.7414C7.13858 13.8564 7.19283 14.0228 7.16469 14.1857L6.25116 19.4762C6.18071 19.8842 6.6083 20.1961 6.97531 20.0045L11.7672 17.5022C11.8397 17.4643 11.9192 17.4454 11.9987 17.4454V3.00011Z",
+	right: "M11.9987 3.00011C12.177 3.00011 12.3554 3.09303 12.4471 3.27888L14.8213 8.09112C14.8941 8.23872 15.0349 8.34102 15.1978 8.3647L20.5069 9.13641C20.917 9.19602 21.0807 9.69992 20.7841 9.9892L16.9421 13.7354C16.8243 13.8503 16.7706 14.0157 16.7984 14.1779L17.7053 19.4674C17.7753 19.8759 17.3466 20.1874 16.9798 19.9945L12.2314 17.4973C12.1586 17.459 12.0786 17.4398 11.9987 17.4398V3.00011Z",
+};
 let clip_count = 0;
 
-// halves are <use>, not nested <svg>: apps select `.rating svg` and expect one per star
+// other icons are clipped <use>, not nested <svg>: apps select `.rating svg` and expect one per star
 function half_html(side, state, icon, clip_id) {
-	return `<use class="${side}-half ${legacy_class(
-		state
-	)}" data-state="${state}" href="#icon-${icon}" clip-path="url(#${clip_id}-${side})"></use>`;
+	const attrs = `class="${side}-half ${legacy_class(state)}" data-state="${state}"`;
+	if (icon === "star") return `<path ${attrs} d="${STAR_HALVES[side]}"></path>`;
+	return `<use ${attrs} href="#icon-${icon}" clip-path="url(#${clip_id}-${side})"></use>`;
 }
 
 // the visual is the item itself, so stars stay `div.rating > svg[data-rating]` as before
@@ -154,8 +159,11 @@ function item_html(i, value, hover, spec, attrs = 'aria-hidden="true"') {
 		}" data-state="${state}" ${attrs}>${frappe.utils.escape_html(item.icon)}</span>`;
 	}
 	const [left, right] = half_states(i, value, hover, spec);
-	const clip_id = `es-rating-clip-${++clip_count}`;
-	return `<svg class="es-rating__item es-rating__icon" data-rating="${i}" viewBox="0 0 24 24" ${attrs}><clipPath id="${clip_id}-left"><rect width="12" height="24"></rect></clipPath><clipPath id="${clip_id}-right"><rect x="12" width="12" height="24"></rect></clipPath>${half_html(
+	const clip_id = item.icon === "star" ? null : `es-rating-clip-${++clip_count}`;
+	const clips = clip_id
+		? `<clipPath id="${clip_id}-left"><rect width="12" height="24"></rect></clipPath><clipPath id="${clip_id}-right"><rect x="12" width="12" height="24"></rect></clipPath>`
+		: "";
+	return `<svg class="es-rating__item es-rating__icon" data-rating="${i}" viewBox="0 0 24 24" ${attrs}>${clips}${half_html(
 		"left",
 		left,
 		item.icon,
@@ -406,7 +414,8 @@ frappe.ui.Rating = class Rating {
 				this.skip_click = false;
 				return;
 			}
-			if (!item || !this.editable()) return;
+			// the second click of a double-click would clear what the first one set
+			if (!item || !this.editable() || e.detail > 1) return;
 			// scripted clicks (detail 0) and touch taps set whole stars; mouse can pick halves
 			if (e.detail === 0 || this.pointer_type !== "mouse" || this.step === 1) {
 				this.pick(Number(item.dataset.rating), { toggle: e.detail !== 0 });
