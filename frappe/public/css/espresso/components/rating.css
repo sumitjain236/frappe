@@ -2,8 +2,8 @@
  *
  *   <div class="rating es-rating" role="radiogroup" data-interactive>
  *     <svg class="es-rating__item es-rating__icon" role="radio" data-rating="1">
- *       <svg class="left-half" data-state="filled">…</svg>
- *       <svg class="right-half" data-state="empty">…</svg>
+ *       <use class="left-half star-click" data-state="filled"></use>
+ *       <use class="right-half" data-state="empty"></use>
  *     </svg>
  *   </div>
  *
@@ -178,7 +178,6 @@
 
 .es-rating .left-half,
 .es-rating .right-half {
-    overflow: hidden;
     fill: var(--star-fill);
     stroke: var(--star-fill);
     stroke-width: 1.5;
@@ -186,20 +185,21 @@
     transition: fill 100ms ease-out, stroke 100ms ease-out;
 }
 
-.es-rating .es-rating__icon [data-state="filled"] {
-    --star-fill: var(--es-rating-filled);
+/* colour follows the old classes, so apps that toggle star-click still repaint */
+.es-rating .es-rating__icon > use {
+    --star-fill: var(--es-rating-empty);
 }
 
-.es-rating .es-rating__icon [data-state="preview"] {
-    --star-fill: var(--es-rating-preview);
-}
-
-.es-rating .es-rating__icon [data-state="removing"] {
+.es-rating .es-rating__icon > [data-state="removing"] {
     --star-fill: var(--es-rating-removing);
 }
 
-.es-rating .es-rating__icon [data-state="empty"] {
-    --star-fill: var(--es-rating-empty);
+.es-rating .es-rating__icon > .star-hover {
+    --star-fill: var(--es-rating-preview);
+}
+
+.es-rating .es-rating__icon > .star-click {
+    --star-fill: var(--es-rating-filled);
 }
 
 .es-rating[data-fill="false"] .left-half,

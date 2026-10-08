@@ -135,11 +135,13 @@ function half_states(i, value, hover, spec) {
 	return [unit_state(i - 0.5, value, hover), unit_state(i, value, hover)];
 }
 
-function half_html(side, state, icon) {
-	const x = side === "left" ? 0 : 12;
-	return `<svg class="${side}-half ${legacy_class(
+let clip_count = 0;
+
+// halves are <use>, not nested <svg>: apps select `.rating svg` and expect one per star
+function half_html(side, state, icon, clip_id) {
+	return `<use class="${side}-half ${legacy_class(
 		state
-	)}" data-state="${state}" x="${x}" width="12" height="24" viewBox="${x} 0 12 24"><use href="#icon-${icon}" width="24" height="24"></use></svg>`;
+	)}" data-state="${state}" href="#icon-${icon}" clip-path="url(#${clip_id}-${side})"></use>`;
 }
 
 // the visual is the item itself, so stars stay `div.rating > svg[data-rating]` as before
@@ -152,11 +154,13 @@ function item_html(i, value, hover, spec, attrs = 'aria-hidden="true"') {
 		}" data-state="${state}" ${attrs}>${frappe.utils.escape_html(item.icon)}</span>`;
 	}
 	const [left, right] = half_states(i, value, hover, spec);
-	return `<svg class="es-rating__item es-rating__icon" data-rating="${i}" viewBox="0 0 24 24" ${attrs}>${half_html(
+	const clip_id = `es-rating-clip-${++clip_count}`;
+	return `<svg class="es-rating__item es-rating__icon" data-rating="${i}" viewBox="0 0 24 24" ${attrs}><clipPath id="${clip_id}-left"><rect width="12" height="24"></rect></clipPath><clipPath id="${clip_id}-right"><rect x="12" width="12" height="24"></rect></clipPath>${half_html(
 		"left",
 		left,
-		item.icon
-	)}${half_html("right", right, item.icon)}</svg>`;
+		item.icon,
+		clip_id
+	)}${half_html("right", right, item.icon, clip_id)}</svg>`;
 }
 
 function root_attrs(opts, spec, extra = []) {
