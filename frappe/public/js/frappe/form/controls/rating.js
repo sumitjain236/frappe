@@ -15,7 +15,7 @@ frappe.ui.form.ControlRating = class ControlRating extends frappe.ui.form.Contro
 	}
 
 	get_star_count() {
-		return cint(this.df.options) || 5;
+		return frappe.ui.rating.max_of(this.df);
 	}
 
 	// the form builder previews with `disabled`; grids and only_input controls render while read-only

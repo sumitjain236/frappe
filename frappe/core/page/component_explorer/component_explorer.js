@@ -2136,8 +2136,8 @@ frappe.pages["component-explorer"].on_page_load = function (wrapper) {
 					title: __("Markup only, for list and grid cells"),
 					items: [
 						{
-							__code: 'frappe.ui.rating.html({ value: 3.5, size: "sm" })',
-							__html: frappe.ui.rating.html({ value: 3.5, size: "sm" }),
+							__code: "frappe.ui.rating.html({ value: 3.5 })",
+							__html: frappe.ui.rating.html({ value: 3.5 }),
 						},
 					],
 				},

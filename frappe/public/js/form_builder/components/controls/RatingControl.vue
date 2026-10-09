@@ -8,13 +8,16 @@ let rating_control = computed(() => {
 	if (!rating.value) return;
 	rating.value.innerHTML = "";
 
-	return frappe.ui.form.make_control({
+	const control = frappe.ui.form.make_control({
 		parent: rating.value,
 		df: { ...props.df, hidden: 0 },
 		disabled: true,
 		render_input: true,
 		only_input: true,
 	});
+	// the preview shows every star filled
+	control.set_input(1);
+	return control;
 });
 
 onMounted(() => {
@@ -27,6 +30,7 @@ watch(
 		if (rating_control.value) {
 			rating_control.value.df.options = value;
 			rating_control.value?.make_input();
+			rating_control.value?.set_input(1);
 		}
 	}
 );
@@ -42,9 +46,3 @@ watch(
 		<div v-if="df.description" class="mt-2 description" v-html="df.description"></div>
 	</div>
 </template>
-
-<style lang="scss" scoped>
-:deep(.rating [data-state]) {
-	--star-fill: var(--yellow-500) !important;
-}
-</style>

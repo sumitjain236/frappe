@@ -13,6 +13,7 @@
  *   data-theme="red|blue|…"  none = yellow; any espresso hue
  *   data-interactive         editable: hit pad around each star
  *   data-disabled            dimmed
+ *   data-drag="false"        tap only: swipes scroll instead of rating
  *   data-highlight="single"  only the chosen option stands out
  *   data-fill="false"        icons colour their outline only
  *   data-active              a value is set or being hovered
@@ -31,20 +32,26 @@
     --es-rating-preview: var(--yellow-200);
     --es-rating-removing: var(--yellow-300);
     --es-rating-empty: var(--outline-gray-2);
-    --es-rating-size: 20px;
-    --es-rating-pad: 4px;
+    --es-rating-size: calc(var(--spacing) * 5);
+    --es-rating-pad: var(--spacing);
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: calc(var(--spacing) * 0.5);
     vertical-align: middle;
     line-height: 0;
     touch-action: pan-y;
 }
 
+/* tap-only: let a swipe over the stars scroll the page sideways too */
+.es-rating[data-drag="false"] {
+    touch-action: manipulation;
+}
+
+/* the raw gray scale puts preview next to empty; ink grays keep the order in both modes */
 .es-rating[data-theme="gray"] {
-    --es-rating-filled: var(--gray-500);
-    --es-rating-preview: var(--gray-200);
-    --es-rating-removing: var(--gray-300);
+    --es-rating-filled: var(--ink-gray-6);
+    --es-rating-preview: var(--ink-gray-4);
+    --es-rating-removing: var(--ink-gray-3);
 }
 
 .es-rating[data-theme="blue"] {
@@ -113,27 +120,30 @@
 }
 
 .es-rating[data-size="sm"] {
-    --es-rating-size: 14px;
-    gap: 1px;
+    --es-rating-size: calc(var(--spacing) * 3.5);
+    gap: calc(var(--spacing) * 0.25);
 }
 
 .es-rating[data-size="lg"] {
-    --es-rating-size: 24px;
+    --es-rating-size: calc(var(--spacing) * 6);
 }
 
 .es-rating[data-size="xl"] {
-    --es-rating-size: 32px;
-    gap: 4px;
+    --es-rating-size: calc(var(--spacing) * 8);
+    gap: var(--spacing);
 }
 
+/* wider tap pads on touch, but not taller: rows above and below sit close (Kanban cards) */
 @media (pointer: coarse) {
     .es-rating {
-        --es-rating-pad: 8px;
+        --es-rating-pad: calc(var(--spacing) * 2);
+        --es-rating-pad-block: var(--spacing);
     }
 }
 
 .es-rating__item {
     flex-shrink: 0;
+    /* a clicked star would otherwise keep the browser's focus ring; keyboard focus gets ours below */
     outline: none;
 }
 
@@ -146,20 +156,21 @@
 /* pads overlap neighbours so the stars sit where the read-only ones do */
 .es-rating[data-interactive] .es-rating__icon {
     box-sizing: content-box;
-    padding: var(--es-rating-pad);
-    margin: calc(var(--es-rating-pad) * -1);
+    padding: var(--es-rating-pad-block, var(--es-rating-pad)) var(--es-rating-pad);
+    margin: calc(var(--es-rating-pad-block, var(--es-rating-pad)) * -1)
+        calc(var(--es-rating-pad) * -1);
 }
 
 .es-rating[data-interactive] .es-rating__item:focus-visible {
     z-index: 1;
-    outline: none;
-    box-shadow: 0 0 0 2px var(--outline-gray-3);
+    outline: var(--focus-outline-default, 2px solid var(--outline-gray-3));
+    outline-offset: 0;
 }
 
 .es-rating[role="slider"]:focus-visible {
-    outline: none;
+    outline: var(--focus-outline-default, 2px solid var(--outline-gray-3));
+    outline-offset: 0;
     border-radius: var(--radius-3);
-    box-shadow: 0 0 0 2px var(--outline-gray-3);
 }
 
 .es-rating[data-disabled] {
@@ -230,7 +241,7 @@
 }
 
 .es-rating__glyph[data-kind="emoji"] {
-    min-width: calc(var(--es-rating-size) + 6px);
+    min-width: calc(var(--es-rating-size) + var(--spacing) * 1.5);
     font-size: calc(var(--es-rating-size) * 1.1);
 }
 
@@ -255,14 +266,14 @@
 }
 
 .es-rating__glyph[data-kind="text"] {
-    height: calc(var(--es-rating-size) + 8px);
-    margin-inline: 1px;
+    height: calc(var(--es-rating-size) + var(--spacing) * 2);
+    margin-inline: calc(var(--spacing) * 0.25);
     padding: 0 calc(var(--spacing) * 2.5);
     border-radius: var(--radius-3);
     background: var(--surface-gray-2);
     color: var(--ink-gray-7);
     font-size: var(--text-sm);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 .es-rating__glyph[data-kind="text"][data-state="filled"] {
