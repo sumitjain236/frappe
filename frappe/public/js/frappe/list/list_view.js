@@ -1512,11 +1512,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 						: value_display;
 			}
 
-			if (df.fieldtype === "Rating") {
-				let out_of_ratings = df.options || 5;
-				_value = flt(value) * out_of_ratings;
-			}
-
 			let masked_fields = frappe.get_meta(this.doctype).masked_fields || [];
 			let is_masked = masked_fields.includes(df.fieldname);
 
@@ -1559,8 +1554,12 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				</a>`;
 			}
 
-			return `<span class="ellipsis"
-				title="${__(label)}: ${frappe.utils.escape_html(_value)}">
+			// rating stars carry their own tooltip ("Rated 3.5 of 5 stars")
+			const title =
+				df.fieldtype === "Rating"
+					? ""
+					: ` title="${__(label)}: ${frappe.utils.escape_html(_value)}"`;
+			return `<span class="ellipsis"${title}>
 				${html}
 			</span>`;
 		};

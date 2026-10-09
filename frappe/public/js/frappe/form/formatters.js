@@ -104,14 +104,9 @@ frappe.form.formatters = {
 			options
 		);
 	},
-	Rating: function (value, docfield, options) {
-		const max = cint(docfield.options) || 5;
-		// read-only form fields pass inline; list, grid and report cells get the small size
-		return frappe.ui.rating.html({
-			value: flt(value) * max,
-			max,
-			size: options?.inline ? "md" : "sm",
-		});
+	Rating: function (value, docfield) {
+		const max = frappe.ui.rating.max_of(docfield);
+		return frappe.ui.rating.html({ value: flt(value) * max, max });
 	},
 	Currency: function (value, docfield, options, doc) {
 		if (value === null) {
