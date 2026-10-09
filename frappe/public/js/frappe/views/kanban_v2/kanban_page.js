@@ -1375,25 +1375,38 @@ frappe.views.KanbanV2Page = class KanbanV2Page {
 
 	/** Stars even when unset, and rated in place when the user can edit the field. */
 	rating_value(card, df) {
-		const max = cint(df.options) || 5;
-		const editable = this.can_edit_card_field(card, df);
+		const max = frappe.ui.rating.max_of(df);
+		const value = flt(card[df.fieldname]) * max;
+		if (!this.can_edit_card_field(card, df)) {
+			return $(frappe.ui.rating.html({ value, max, label: this.field_label(df) }))[0];
+		}
 		const rating = new frappe.ui.Rating({
-			value: flt(card[df.fieldname]) * max,
+			value,
 			max,
 			step: 0.5,
 			label: this.field_label(df),
 			required: !!df.reqd,
-			readonly: !editable,
+			// a swipe across a card scrolls the board; it must not save a rating
+			drag: false,
 			on_change: (stars) => this.save_card_rating(card, df, stars / max),
 		});
 		// rating a card must not select or open it
-		if (editable) rating.$el.on("click dblclick", (e) => e.stopPropagation());
+		rating.$el.on("click dblclick", (e) => e.stopPropagation());
 		return rating.el;
 	}
 
 	can_edit_card_field(card, df) {
 		if (!this.is_field_editable(df) || !frappe.model.can_write(this.doctype)) return false;
-		if (!frappe.perm.has_perm(this.doctype, df.permlevel || 0, "write")) return false;
+		// "if owner" rules make write depend on who owns the card; one check per owner will do
+		const permlevel = df.permlevel || 0;
+		const key = `${this.doctype}:${card.owner}:${permlevel}`;
+		this._write_by_owner = this._write_by_owner || {};
+		if (!(key in this._write_by_owner)) {
+			this._write_by_owner[key] = frappe.perm.has_perm(this.doctype, permlevel, "write", {
+				owner: card.owner,
+			});
+		}
+		if (!this._write_by_owner[key]) return false;
 		const docstatus = cint(card.docstatus);
 		return docstatus === 0 || (docstatus === 1 && !!df.allow_on_submit);
 	}
