@@ -20,6 +20,7 @@ class DocField(Document):
 		allow_bulk_edit: DF.Check
 		allow_in_quick_entry: DF.Check
 		allow_on_submit: DF.Check
+		allowed_dates: DF.Literal["", "Past", "Future"]
 		bold: DF.Check
 		button_color: DF.Literal["", "Default", "Primary", "Info", "Success", "Warning", "Danger"]
 		collapsible: DF.Check
@@ -83,6 +84,7 @@ class DocField(Document):
 		hide_border: DF.Check
 		hide_days: DF.Check
 		hide_seconds: DF.Check
+		icon: DF.Icon | None
 		ignore_user_permissions: DF.Check
 		ignore_versioning: DF.Check
 		ignore_xss_filter: DF.Check

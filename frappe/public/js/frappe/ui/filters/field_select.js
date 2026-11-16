@@ -1,6 +1,14 @@
 // Searchable field picker for filters: a combobox over the doctype's own and
 // standard fields, with each child table's fields in a group of their own.
 frappe.ui.FieldSelect = class FieldSelect {
+	// the options and fields a picker for `doctype` offers, without building one
+	static get_options(doctype) {
+		const picker = Object.create(FieldSelect.prototype);
+		Object.assign(picker, { doctype, options: [], fields_by_name: {} });
+		picker.build_options();
+		return { options: picker.options, fields_by_name: picker.fields_by_name };
+	}
+
 	// opts parent, doctype, parent_doctype, filter_fields, with_blank, select, placeholder
 	constructor(opts) {
 		$.extend(this, opts);

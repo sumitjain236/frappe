@@ -78,8 +78,8 @@ repos:
       - id: island-tests
         name: Run the island build and chart adapter tests
         language: system
-        entry: node --test frappe/public/js/frappe/ui/island/chart/legacy_config.test.mjs ui/vite/island/toolchain.test.mjs esbuild/assets_json.test.mjs
-        files: ^(frappe/public/js/frappe/ui/island/chart/|ui/vite/island/|esbuild/assets_json)
+        entry: node --test frappe/public/js/frappe/ui/island/chart/legacy_config.test.mjs frappe/public/js/frappe/ui/island/filters/wire.test.mjs ui/vite/island/toolchain.test.mjs esbuild/assets_json.test.mjs
+        files: ^(frappe/public/js/frappe/ui/island/(chart|filters)/|ui/vite/island/|esbuild/assets_json)
         pass_filenames: false
 
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

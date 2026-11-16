@@ -462,3 +462,95 @@
 .match-type-dropdown-menu {
 	min-width: 100px;
 }
+
+// the side panel a list's Filter button opens while Use Smart Filters is on
+.filter-panel-scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 1040;
+	background: color-mix(in srgb, var(--gray-900) 40%, transparent);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 200ms ease;
+
+	&.is-open {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+
+.filter-panel {
+	--filter-panel-width: clamp(540px, 42vw, 720px);
+
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	// slides on `right`, not `transform`: a transform would hold the rows' fixed-position pickers
+	right: calc(-1 * var(--filter-panel-width));
+	width: var(--filter-panel-width);
+	z-index: 1040;
+	display: flex;
+	flex-direction: column;
+	background-color: var(--surface-base);
+	border-left: 1px solid var(--outline-gray-2);
+	box-shadow: var(--elevation-xl);
+	outline: none;
+	visibility: hidden;
+	transition: right 200ms ease, visibility 0s 200ms;
+
+	&.is-open {
+		right: 0;
+		visibility: visible;
+		transition: right 200ms ease;
+	}
+}
+
+.filter-panel-header {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: calc(var(--spacing) * 2);
+	height: calc(var(--spacing) * 14);
+	padding-inline: calc(var(--spacing) * 4);
+	border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.filter-panel-title {
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: var(--font-weight-semibold);
+	color: var(--ink-gray-9);
+}
+
+.filter-panel-pane {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: calc(var(--spacing) * 5);
+}
+
+// the island lays out and scrolls its own rail and picker
+.filter-panel-simple {
+	padding: 0;
+	overflow: hidden;
+}
+
+// the panel can be wider than the rows: the field and value boxes take the room, so the rows
+// start and end where Add filter and Clear all do
+.filter-panel-advanced .filter-area {
+	.filter-edit-area {
+		grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.25fr) auto;
+	}
+
+	.filter-box .filter-prefix {
+		padding-inline-start: 0;
+		text-align: start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.filter-panel,
+	.filter-panel-scrim {
+		transition: none;
+	}
+}

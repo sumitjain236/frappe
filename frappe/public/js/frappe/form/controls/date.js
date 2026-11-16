@@ -59,6 +59,11 @@ frappe.ui.form.ControlDate = class ControlDate extends frappe.ui.form.ControlDat
 		fn();
 		setTimeout(() => (this._suppress_change = false));
 	}
+	// a field set to hold only past or only future dates offers only those days, on the form;
+	// a filter on it may look at any day
+	allows(dates) {
+		return !this.df.is_filter && this.df.allowed_dates === dates;
+	}
 	set_date_options() {
 		this.today_text = __("Today");
 		this.date_format = frappe.defaultDateFormat;
@@ -69,8 +74,8 @@ frappe.ui.form.ControlDate = class ControlDate extends frappe.ui.form.ControlDat
 			dateFormat: (date) => frappe.datetime.obj_to_user(date),
 			startDate: this.get_start_date(),
 			keyboardNav: false,
-			minDate: this.df.min_date,
-			maxDate: this.df.max_date,
+			minDate: this.df.min_date || (this.allows("Future") ? new Date() : undefined),
+			maxDate: this.df.max_date || (this.allows("Past") ? new Date() : undefined),
 			firstDay: frappe.datetime.get_first_day_of_the_week_index(),
 			position: frappe.ui.form.position_datepicker,
 			onRenderCell: ({ date, cellType }) => {

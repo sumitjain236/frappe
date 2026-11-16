@@ -65,13 +65,7 @@ frappe.ui.FilterGroup = class {
 			align: "end",
 			css_class: "filter-popover",
 			on_open: (popover) => this.on_popover_open(popover),
-			on_close: () => {
-				// a toolbar row typed into but not yet blurred still counts
-				this.sync_rows_to_toolbar();
-				this.drop_standard_rows();
-				this.update_filters();
-				this.apply_changes();
-			},
+			on_close: () => this.close_rows(),
 		});
 		this.set_clear_all_filters_event();
 
@@ -79,7 +73,10 @@ frappe.ui.FilterGroup = class {
 		this.popover.trigger_el.removeEventListener("click", this.popover.ontriggerclick);
 		this.filter_button[0].addEventListener("click", (e) => {
 			e.preventDefault();
-			frappe.is_mobile() ? this.open_sheet() : this.popover.toggle();
+			if (frappe.is_mobile()) this.open_sheet();
+			else if (this.toolbar && frappe.defaults.is_enabled("use_smart_filters"))
+				this.toggle_filter_panel();
+			else this.popover.toggle();
 		});
 		this.intercept_row_pickers();
 
@@ -503,6 +500,28 @@ frappe.ui.FilterGroup = class {
 		this.update_filter_button();
 	}
 
+	async toggle_filter_panel() {
+		if (this.filter_panel) return this.filter_panel.toggle();
+		// one load for clicks that come while it loads, and each of them opens the panel
+		this.panel_load ||= frappe.require("filter_panel.bundle.js");
+		const route = frappe.get_route_str();
+		await this.panel_load;
+		// the user left this list while it loaded
+		if (frappe.get_route_str() !== route) return;
+		// the bundle failed to load, as after a deploy: the popover still filters
+		if (!frappe.ui.FilterPanel) return this.popover.toggle();
+		this.filter_panel ||= new frappe.ui.FilterPanel(this);
+		this.filter_panel.open();
+	}
+
+	close_rows() {
+		// a toolbar row typed into but not yet blurred still counts
+		this.sync_rows_to_toolbar();
+		this.drop_standard_rows();
+		this.update_filters();
+		this.apply_changes();
+	}
+
 	// rows go in before the panel is measured, so it opens at its final size
 	get_popover_content() {
 		this.sync_standard_rows();
@@ -680,6 +699,7 @@ frappe.ui.FilterGroup = class {
 		if (count)
 			title = count === 1 ? __("1 filter applied") : __("{0} filters applied", [count]);
 		this.filter_button.attr("title", title);
+		this.filter_panel?.refresh();
 	}
 
 	set_filter_events() {
@@ -764,7 +784,7 @@ frappe.ui.FilterGroup = class {
 
 		let filter = this._push_new_filter(...args);
 
-		if (filter && filter.value) {
+		if (filter && filter.value !== "") {
 			return filter._filter_value_set; // internal promise
 		}
 	}

@@ -1462,8 +1462,10 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		let $count = this.get_count_element();
 		$count.css("white-space", "nowrap");
 
+		const counted = frappe.defaults.is_enabled("use_smart_filters") && this.filter_area?.get();
 		this.get_count_str().then((count) => {
 			$count.html(`<span>${count}</span>`);
+			this.filter_area?.filter_list?.filter_panel?.count_ready(counted);
 			this.sync_right_width();
 			if (
 				this.count_upper_bound &&

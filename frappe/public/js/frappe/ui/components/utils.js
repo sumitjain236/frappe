@@ -164,3 +164,12 @@ export const CHART_PALETTE = [
 	"red-500",
 	"red-400",
 ].map((token) => `var(--${token})`);
+
+// a classic Link / Autocomplete suggestion list or the date picker, open on the field
+export function field_popup_open(target) {
+	const list = target
+		.closest?.(".awesomplete")
+		?.querySelector(":scope > ul, :scope > [role='listbox']");
+	if (list && !list.hidden && list.children.length) return true;
+	return !!document.querySelector(".air-datepicker.-active-");
+}

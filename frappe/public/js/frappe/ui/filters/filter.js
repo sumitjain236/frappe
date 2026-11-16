@@ -4,6 +4,18 @@
 const RECORD_PICKERS = ["MultiSelectList", "MultiSelectPills"];
 
 frappe.ui.Filter = class {
+	// the conditions a row offers for `df`, without building one
+	static get_conditions(df) {
+		const filter = Object.create(frappe.ui.Filter.prototype);
+		filter.set_conditions();
+		filter.set_conditions_from_config();
+		const scrubbed = { ...df };
+		frappe.ui.filter_utils.set_fieldtype(scrubbed, null, "=");
+		filter.hide_invalid_conditions(scrubbed.fieldtype, df.fieldtype);
+		filter.toggle_nested_set_conditions(df);
+		return filter.get_valid_conditions().map(([condition]) => condition);
+	}
+
 	constructor(opts) {
 		$.extend(this, opts);
 		if (this.value === null || this.value === undefined) {
@@ -207,7 +219,7 @@ frappe.ui.Filter = class {
 			css_class: "remove-filter",
 			onclick: () => {
 				// the focused button goes with its row: keep focus in the panel, so Escape still closes it
-				const $panel = this.filter_edit_area.closest(".es-popover");
+				const $panel = this.filter_edit_area.closest(".es-popover, .filter-panel");
 				this.remove();
 				this.on_change();
 				$panel.trigger("focus");
@@ -216,21 +228,24 @@ frappe.ui.Filter = class {
 		this.filter_edit_area.find(".filter-remove").append($remove);
 	}
 
-	get_condition_options() {
+	get_valid_conditions() {
 		const invalid = this.invalid_conditions || [];
 		const nested = this.nested_set_conditions.map(([c]) => c);
 		return this.conditions
 			.filter(([c]) => !invalid.includes(c))
-			.filter(([c]) => this.show_nested_set || !nested.includes(c))
-			.map(([c]) => ({
-				label: this.get_condition_label(c),
-				selected: c === this.condition,
-				onclick: () => {
-					if (c === this.condition) return;
-					this.set_condition(c, true);
-					this.on_change();
-				},
-			}));
+			.filter(([c]) => this.show_nested_set || !nested.includes(c));
+	}
+
+	get_condition_options() {
+		return this.get_valid_conditions().map(([c]) => ({
+			label: this.get_condition_label(c),
+			selected: c === this.condition,
+			onclick: () => {
+				if (c === this.condition) return;
+				this.set_condition(c, true);
+				this.on_change();
+			},
+		}));
 	}
 
 	get_condition_label(condition) {

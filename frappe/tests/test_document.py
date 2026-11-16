@@ -463,6 +463,24 @@ class TestDocument(IntegrationTestCase):
 		finally:
 			doctype.delete(force=True)
 
+	def test_allowed_dates(self):
+		doctype = new_doctype(
+			fields=[{"fieldname": "due", "fieldtype": "Date", "label": "Due", "allowed_dates": "Future"}]
+		).insert()
+
+		try:
+			yesterday = frappe.utils.add_days(frappe.utils.today(), -1)
+			self.assertRaises(
+				frappe.ValidationError, frappe.get_doc(doctype=doctype.name, due=yesterday).insert
+			)
+			doc = frappe.get_doc(doctype=doctype.name, due=frappe.utils.today()).insert()
+			# a stored date that has since passed still saves
+			frappe.db.set_value(doctype.name, doc.name, "due", yesterday)
+			doc.reload()
+			doc.save()
+		finally:
+			doctype.delete(force=True)
+
 	def test_get_formatted(self):
 		frappe.get_doc(
 			{

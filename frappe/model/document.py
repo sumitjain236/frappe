@@ -1390,6 +1390,7 @@ class Document(_DocumentBase):
 		self._validate_selects()
 		self._validate_non_negative()
 		self._validate_min_max_value()
+		self._validate_allowed_dates()
 		self._fix_rating_value()
 		self._validate_code_fields()
 		self._sync_autoname_field()
@@ -1439,6 +1440,30 @@ class Document(_DocumentBase):
 			if flt(self.get(df.fieldname)) < 0:
 				msg = get_msg(df)
 				frappe.throw(msg, frappe.NonNegativeError, title=_("Negative Value"))
+
+	def _validate_allowed_dates(self):
+		"""A date field set to hold only past or only future dates can't be given one outside them.
+		Only a new or changed date is checked: a stored one stays valid as time passes it."""
+		before = self.get_doc_before_save()
+		old_rows = {d.name: d for d in before.get_all_children()} if before else {}
+		today = getdate()
+		for doc in (self, *self.get_all_children()):
+			old = before if doc is self else old_rows.get(doc.name)
+			for df in doc.meta.get("fields", {"allowed_dates": ("in", ["Past", "Future"])}):
+				value = doc.get(df.fieldname)
+				if not value or (old and old.get(df.fieldname) == value):
+					continue
+				day = getdate(value)
+				if df.allowed_dates == "Past" and day > today:
+					message = _("{0} can't be a future date")
+				elif df.allowed_dates == "Future" and day < today:
+					message = _("{0} can't be a past date")
+				else:
+					continue
+				label = frappe.bold(_(df.label, context=df.parent))
+				if doc.get("parentfield"):
+					label = _("Row #{0}: {1}").format(doc.idx, label)
+				frappe.throw(message.format(label), title=_("Invalid Date"))
 
 	def _validate_min_max_value(self):
 		def get_msg(df, constraint):

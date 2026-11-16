@@ -8,6 +8,7 @@ import path from "node:path";
 /** Island name → entry file, relative to `apps/frappe`. */
 export const FRAMEWORK_ISLANDS = {
 	"frappe.chart": "frappe/public/js/frappe/ui/island/chart/chart.island.js",
+	"frappe.filters": "frappe/public/js/frappe/ui/island/filters/filters.island.js",
 };
 
 /**

@@ -198,6 +198,92 @@ test.describe("List filter", () => {
 		});
 	});
 
+	test.describe("side panel, with Use Smart Filters", () => {
+		let original;
+
+		test.beforeAll(async ({ admin }) => {
+			original = (await admin.get_doc("System Settings", "System Settings")).data
+				.use_smart_filters;
+			await admin.set_value("System Settings", "System Settings", { use_smart_filters: 1 });
+		});
+
+		test.afterAll(async ({ admin }) => {
+			await admin.set_value("System Settings", "System Settings", {
+				use_smart_filters: original,
+			});
+		});
+
+		test("keeps today's rows under Advanced, applied as they are filled", async ({
+			page,
+			desk,
+		}) => {
+			await desk.go_to_list("ToDo");
+			await desk.clear_filters();
+
+			await page.locator(".filter-section .filter-button").click();
+			const panel = page.locator(".filter-panel.is-open");
+			await expect(panel).toBeVisible();
+			await expect(page.locator(".filter-popover")).toHaveCount(0);
+
+			await panel.getByRole("radio", { name: "Advanced" }).click();
+			await desk.pick_filter_field("Status");
+			await panel.locator(".filter-field select").selectOption("Closed");
+			await expect.poll(() => applied(page)).toContainEqual(["status", "=", "Closed"]);
+			await expect.poll(() => box_value(page, "status")).toBe("Closed");
+
+			await page.keyboard.press("Escape");
+			await expect(panel).toHaveCount(0);
+			expect(await applied(page)).toContainEqual(["status", "=", "Closed"]);
+
+			await page.locator(".filter-section .filter-button").click();
+			await panel.getByRole("button", { name: "Clear all" }).click();
+			await expect.poll(() => applied(page)).toHaveLength(0);
+		});
+
+		test("Simple and Advanced edit the same filters", async ({ page, desk }) => {
+			await desk.go_to_list("ToDo");
+			await desk.clear_filters();
+
+			await page.locator(".filter-section .filter-button").click();
+			const panel = page.locator(".filter-panel.is-open");
+			// the island is a shadow root; Playwright's locators reach into it
+			const suggested = panel.getByRole("group", { name: "Suggested" });
+			await suggested.getByRole("button", { name: "Open", exact: true }).click();
+			await expect.poll(() => applied(page)).toContainEqual(["status", "=", "Open"]);
+			await suggested.getByRole("button", { name: "Open", exact: true }).click();
+			await expect.poll(() => applied(page)).toHaveLength(0);
+
+			await panel.getByRole("button", { name: "Status", exact: true }).click();
+			const statuses = panel.getByRole("group", { name: "Status", exact: true });
+			await statuses.getByRole("button", { name: "Closed", exact: true }).click();
+			await expect.poll(() => applied(page)).toContainEqual(["status", "=", "Closed"]);
+
+			await statuses.getByRole("button", { name: "Open", exact: true }).click();
+			await expect
+				.poll(() => applied(page))
+				.toContainEqual(["status", "in", ["Closed", "Open"]]);
+
+			await panel.getByRole("radio", { name: "Advanced" }).click();
+			await expect(panel.locator(".filter-panel-advanced .filter-box")).toHaveCount(1);
+		});
+
+		test("Simple filters a child table's field as that table's", async ({ page, desk }) => {
+			await desk.go_to_list("User");
+			await desk.clear_filters();
+
+			await page.locator(".filter-section .filter-button").click();
+			const panel = page.locator(".filter-panel.is-open");
+			await panel.getByRole("textbox", { name: "Search fields" }).fill("role");
+			await panel.getByRole("button", { name: "Role", exact: true }).first().click();
+			await panel.getByRole("textbox", { name: "Search Role" }).fill("System Manager");
+			await panel.getByRole("checkbox", { name: "System Manager", exact: true }).click();
+
+			await expect
+				.poll(() => page.evaluate(() => cur_list.filter_area.get()))
+				.toContainEqual(["Has Role", "role", "=", "System Manager"]);
+		});
+	});
+
 	test.describe("Link in, with the combobox", () => {
 		const panel = (page) => page.locator(".es-combobox__panel[data-state='open']");
 		const search = (page) => panel(page).locator(".es-combobox__input");
