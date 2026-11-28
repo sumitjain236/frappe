@@ -407,11 +407,12 @@ export const ListFilterMenu = {
 	},
 
 	/** Open shared create/edit/duplicate layout dialog. */
-	open_layout_dialog(layout = null, { duplicate_from = null } = {}) {
+	open_layout_dialog(layout = null, { duplicate_from = null, on_back = null } = {}) {
 		new LayoutDialog({
 			list_view: this.list_view,
 			layout,
 			duplicate_from,
+			on_back,
 			on_save: () =>
 				this.setup_layout_menu({ refetch: true }).then(() => {
 					// an edit to the layout on screen shows right away
